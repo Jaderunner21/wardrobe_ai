@@ -1,0 +1,95 @@
+name: CI
+
+# Module 15 — CI. Eight steps, every one of them fails the build rather than warning.
+# Steps 4-7 are three greps and a query. They cost nothing and each guards a failure
+# that is invisible in code review.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  # Placeholder values: the build must not need real credentials, and CI must never
+  # hold a key that could reach production data.
+  NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key-placeholder-value
+  SUPABASE_SERVICE_ROLE_KEY: ci-service-role-placeholder-value
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 1
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # 2
+      - name: Lint
+        run: pnpm lint
+
+      # 3
+      - name: Unit tests
+        run: pnpm test
+
+      # 8 — migrations apply cleanly to a fresh Postgres. Runs before the RLS check,
+      # which needs the schema to exist.
+      - name: Apply migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "create schema if not exists auth;" \
+            -c "create table if not exists auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);" \
+            -c "create schema if not exists storage;" \
+            -c "create table if not exists storage.buckets (id text primary key, name text, public boolean);" \
+            -c "create table if not exists storage.objects (id uuid default gen_random_uuid() primary key, bucket_id text, name text);" \
+            -c "create or replace function auth.uid() returns uuid language sql stable as \$\$ select null::uuid \$\$;" \
+            -c "create or replace function storage.foldername(name text) returns text[] language sql immutable as \$\$ select string_to_array(name, '/') \$\$;"
+          for f in supabase/migrations/*.sql; do
+            echo "applying $f"
+            psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      # 4
+      - name: RLS coverage
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: bash scripts/check-rls.sh
+
+      # 5
+      - name: No select('*')
+        run: bash scripts/check-select-star.sh
+
+      # 6
+      - name: Gemini calls are budget-guarded
+        run: bash scripts/check-budget-guard.sh
+
+      - name: Build
+        run: pnpm build
+
+      # 7
+      - name: No secret in the client bundle
+        run: bash scripts/check-secret-leak.sh

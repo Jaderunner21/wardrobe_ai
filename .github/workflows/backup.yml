@@ -1,0 +1,38 @@
+name: Weekly database backup
+
+# Module 15 — Backups. The one unrecoverable failure.
+#
+# Testers hand-enter attributes for hundreds of items; that is hours of human work
+# with no undo, and Supabase's free-tier backup policy is thin. Artifacts are free and
+# retained 90 days, which is enough for a test phase without a second storage account.
+#
+# RESTORE ONE INTO A SCRATCH DATABASE AND VERIFY IT before considering this done. An
+# untested backup is a belief, not a backup.
+#
+# Turn this on at the end of L1 — the moment there is a wardrobe worth losing.
+
+on:
+  schedule:
+    - cron: '0 2 * * 0' # Sundays, 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgresql-client 16
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update && sudo apt-get install -y postgresql-client-16
+
+      - name: Dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: pg_dump "$SUPABASE_DB_URL" --no-owner --format=custom -f dump.pgc
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: dump.pgc
+          retention-days: 90

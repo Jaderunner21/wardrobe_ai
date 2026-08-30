@@ -1,0 +1,177 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens — module 16 §1.
+ *
+ * Sampled from the working prototype's actual pixels, not eyeballed. The brand green
+ * is consistent across the logo tile, primary buttons and the active sidebar row at
+ * #85a064.
+ *
+ * NO LITERAL HEX OUTSIDE THIS FILE. Dark mode is a token swap, not a redesign — the
+ * settings screen already promises the toggle, and a hardcoded colour anywhere else
+ * breaks that promise silently.
+ */
+
+:root {
+  /* brand — sage green */
+  --brand-50: #f4f8f2; /* insight tiles, subtle panels */
+  --brand-100: #e8f0e0; /* category pills, active nav pill, chips */
+  --brand-200: #d3e0c6;
+  --brand-300: #b8c6a9; /* borders on brand surfaces */
+  --brand-400: #9bb37e;
+  --brand-500: #85a064; /* PRIMARY — buttons, logo, active states */
+  --brand-600: #759353; /* hover, match badge */
+  --brand-700: #5f7a42;
+  --brand-800: #4a6033;
+
+  /* neutrals */
+  --bg: #fafafa; /* page */
+  --surface: #ffffff; /* cards, nav bar */
+  --border: #e7e7e5;
+  --text: #171717;
+  --text-dim: #57534e;
+  --text-mute: #8a8a85;
+
+  /* semantic */
+  --danger-50: #fee2e2; /* danger panel background */
+  --danger-300: #e38a8a; /* danger button */
+  --danger-600: #dc2626; /* danger text, trash icon */
+  --favourite: #ef4444; /* filled heart */
+
+  --radius-sm: 8px;
+  --radius: 12px; /* cards, inputs, buttons */
+  --radius-lg: 16px; /* panels */
+
+  --shadow-card:
+    0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+
+  /* --font-jakarta is set by next/font in app/layout.tsx */
+  --font-sans:
+    var(--font-jakarta), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+}
+
+/*
+ * Dark palette. Same variable names, different values — nothing downstream changes.
+ * The brand ramp is lifted and desaturated slightly so brand-500 stays legible as a
+ * button fill against a dark surface.
+ */
+:root[data-theme='dark'] {
+  --brand-50: #1b2318;
+  --brand-100: #24301f;
+  --brand-200: #33452b;
+  --brand-300: #4a6033;
+  --brand-400: #6b8449;
+  --brand-500: #8fac6e;
+  --brand-600: #a3bd85;
+  --brand-700: #c2d5aa;
+  --brand-800: #dcead0;
+
+  --bg: #121311;
+  --surface: #1b1c1a;
+  --border: #2e302c;
+  --text: #f2f2f0;
+  --text-dim: #b9b8b3;
+  --text-mute: #86867f;
+
+  --danger-50: #3a1a1a;
+  --danger-300: #b45f5f;
+  --danger-600: #f87171;
+  --favourite: #f87171;
+
+  --shadow-card:
+    0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+/* `dark:` utilities follow the same attribute the settings toggle writes. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * Tailwind theme. `inline` so the utilities compile to var(--brand-500) rather than
+ * to the literal value — which is what makes the dark swap above work at runtime.
+ */
+@theme inline {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-text-mute: var(--text-mute);
+
+  --color-danger-50: var(--danger-50);
+  --color-danger-300: var(--danger-300);
+  --color-danger-600: var(--danger-600);
+  --color-favourite: var(--favourite);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-card: var(--shadow-card);
+
+  --font-sans: var(--font-sans);
+
+  /* Type scale — module 16 §1 */
+  --text-chip: 12px;
+  --text-chip--line-height: 1;
+  --text-meta: 13px;
+  --text-meta--line-height: 1.5;
+  --text-body: 15px;
+  --text-body--line-height: 1.6;
+  --text-card: 16px;
+  --text-card--line-height: 1.4;
+  --text-section: 20px;
+  --text-section--line-height: 1.3;
+  --text-page: 40px;
+  --text-page--line-height: 1.1;
+
+  /* Content is centred, max-width 1400px, 24px gutters — module 16 §2 */
+  --container-shell: 1400px;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html[data-theme='dark'] {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--brand-100);
+    color: var(--brand-800);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand-500);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .shell {
+    max-width: var(--container-shell);
+    margin-inline: auto;
+    padding-inline: 24px;
+  }
+}
