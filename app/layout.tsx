@@ -15,6 +15,9 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'Wardrobe AI',
   description: 'Your wardrobe, photographed once and dressed every day.',
+  // The same file the login page shows (components/BrandMark.tsx) — one asset, the
+  // two places the mark is meant to appear.
+  icons: { icon: '/logo.png', apple: '/logo.png' },
 };
 
 export const viewport: Viewport = {

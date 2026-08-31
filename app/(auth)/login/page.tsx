@@ -9,6 +9,7 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { BrandMark } from '@/components/BrandMark';
 
 type State = { kind: 'idle' } | { kind: 'sending' } | { kind: 'sent' } | { kind: 'error'; message: string };
 
@@ -70,9 +71,9 @@ function LoginForm() {
 
   return (
     <>
-      <div className="mb-8 flex items-center gap-3">
-        <LogoTile />
-        <span className="text-section font-semibold tracking-tight">Wardrobe AI</span>
+      <div className="mb-8 flex flex-col items-center text-center">
+        <BrandMark size={72} />
+        <span className="mt-3 text-section font-semibold tracking-tight">Wardrobe AI</span>
       </div>
 
       <h1 className="text-section font-semibold tracking-tight">Sign in</h1>
@@ -137,25 +138,6 @@ export default function LoginPage() {
         </Suspense>
       </div>
     </main>
-  );
-}
-
-function LogoTile() {
-  return (
-    <span
-      aria-hidden
-      className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-brand-500 text-white"
-    >
-      <ShirtGlyph />
-    </span>
-  );
-}
-
-function ShirtGlyph() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M8 3 4 5v5h3v11h10V10h3V5l-4-2a4 4 0 0 1-8 0Z" strokeLinejoin="round" />
-    </svg>
   );
 }
 
