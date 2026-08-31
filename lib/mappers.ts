@@ -120,6 +120,7 @@ export type ItemListRow = Pick<
   | 'id'
   | 'status'
   | 'thumb_path'
+  | 'name'
   | 'category_id'
   | 'slot'
   | 'style'
@@ -141,6 +142,7 @@ export type ItemListView = Pick<
   | 'id'
   | 'status'
   | 'thumbPath'
+  | 'name'
   | 'categoryId'
   | 'slot'
   | 'style'
@@ -311,6 +313,7 @@ export const toItemListView = (r: ItemListRow): ItemListView => ({
   id: r.id,
   status: r.status,
   thumbPath: r.thumb_path,
+  name: r.name,
   categoryId: r.category_id,
   slot: r.slot,
   style: r.style,

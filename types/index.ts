@@ -187,9 +187,17 @@ export interface RetailerDurability {
   wornOutCount: number;
 }
 
-/** Columns a list view is allowed to select. Enforced by convention, see 01. */
+/**
+ * Columns a list view is allowed to select. Enforced by convention, see 01.
+ *
+ * DIVERGES from wardrobe-ai-spec/types.ts by one column: `name`. The spec's own
+ * module 05 §2b says `name` is "what a person recognises in a grid of 60 thumbnails",
+ * and module 16 §3 puts it on the card — but the list was written before
+ * 0003_item_history.sql added the column. One short text column; `ai_raw` and the
+ * purchase history stay out, which is where the egress actually is.
+ */
 export const ITEM_LIST_COLUMNS = [
-  'id', 'status', 'thumb_path', 'category_id', 'slot', 'style', 'brand',
+  'id', 'status', 'thumb_path', 'name', 'category_id', 'slot', 'style', 'brand',
   'subtype', 'primary_color', 'color_hex', 'formality', 'warmth', 'seasons',
   'user_tags', 'favourite', 'archived', 'wear_count',
 ] as const;

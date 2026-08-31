@@ -7,11 +7,11 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0 complete, L1 in progress (module 04 done)
+## Status — L0 complete, L1 code complete (modules 04 and 05)
 
 ```
 L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
-L1  Wardrobe core   04 ✓ → 05 → 16(wardrobe, upload, bin)                        ← here
+L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓                     ← gate
 L2  Tagging         12 → 06
 L3  Recommendations 07 → 08 → 09 → 10 → 16(dashboard, outfits)
 L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──
@@ -29,9 +29,16 @@ sha-256 dedupe hashing, `POST /api/items/presign`, direct-to-storage signed uplo
 a concurrency of 3, and day-rounded signed read URLs. No image byte passes through a
 function.
 
-Wardrobe, upload, outfits and bin are placeholder screens that name the module which
-fills them in. That is deliberate — L1's gate is "your own wardrobe lives in it", and
-nothing before that gate should pretend to.
+Module 05 adds the wardrobe itself: item CRUD, the server-rendered grid with facet
+counts, URL-driven filters, search and four sorts, cursor paging, the Review & Edit
+upload flow with manual entry, drafts, archive, and the Bin with restore and permanent
+delete. Manual entry is built first on purpose (module 05 §1) — it is the permanent
+fallback for when tagging is down or wrong, and it doubles as the correction UI that
+produces the correction-rate metric.
+
+Dashboard and outfits are still placeholder screens naming the module that fills them
+in. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
+passed until the migrations are applied and real items go in.
 
 ## Running it
 
