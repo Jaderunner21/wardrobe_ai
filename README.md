@@ -7,11 +7,11 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0 (Foundation) complete
+## Status — L0 complete, L1 in progress (module 04 done)
 
 ```
-L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ← here
-L1  Wardrobe core   04 → 05 → 16(wardrobe, upload, bin)
+L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
+L1  Wardrobe core   04 ✓ → 05 → 16(wardrobe, upload, bin)                        ← here
 L2  Tagging         12 → 06
 L3  Recommendations 07 → 08 → 09 → 10 → 16(dashboard, outfits)
 L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──
@@ -22,7 +22,12 @@ L6  Production      13 → 14(full) → 15(full)
 What exists: the six migrations, all three Supabase clients, session middleware and
 route protection, email-OTP and Google sign-in, the design tokens with a working dark
 mode, the shell (desktop top bar + mobile tab bar), account export and deletion,
-`/api/health`, and CI with all eight gates.
+`/api/health`, and CI with all eight gates. Module 04 adds a ninth: the storage boundary.
+
+Module 04 adds the media pipeline: client-side WebP compression with EXIF stripped,
+sha-256 dedupe hashing, `POST /api/items/presign`, direct-to-storage signed uploads at
+a concurrency of 3, and day-rounded signed read URLs. No image byte passes through a
+function.
 
 Wardrobe, upload, outfits and bin are placeholder screens that name the module which
 fills them in. That is deliberate — L1's gate is "your own wardrobe lives in it", and
@@ -30,13 +35,21 @@ nothing before that gate should pretend to.
 
 ## Running it
 
+Against a **cloud Supabase project** — no local stack, no Docker.
+
 ```bash
 pnpm install
-cp .env.example .env.local     # fill in the Supabase values
-supabase start                 # local Postgres + auth + storage
-supabase db reset              # applies supabase/migrations/*, then seed.sql
+cp .env.local.example .env.local   # fill in the three Supabase values
 pnpm dev
 ```
+
+Apply `supabase/migrations/*.sql` to the project in filename order, 0001 through
+0006. Every one is idempotent-safe to run once and only once, in order — 0002 depends
+on 0001's tables, 0003 on 0002's, and so on.
+
+`supabase/config.toml` and `supabase/seed.sql` exist for the CLI. Neither is required
+for the cloud path; the seed is the test-phase `plan = 'premium'` update from module
+03 §7, which you can run by hand once the testers have accounts.
 
 Without a `.env.local`, `lib/env.ts` fails loudly at startup. That is the intended
 behaviour, not a bug.
@@ -47,11 +60,12 @@ behaviour, not a bug.
 pnpm typecheck && pnpm lint && pnpm test
 pnpm check:selectstar          # no select('*') anywhere
 pnpm check:budget              # every Gemini call site calls assertBudget
+pnpm check:storage             # only lib/storage*.ts knows the storage provider
 SUPABASE_DB_URL=… pnpm check:rls
 pnpm build && pnpm check:leak  # no server secret in .next/static
 ```
 
-CI runs all eight on every PR and fails the build rather than warning. Four of them
+CI runs all of these on every PR and fails the build rather than warning. Four of them
 guard failures that are invisible in code review: a table without RLS is a data
 breach, a `select('*')` is egress, an unguarded model call is a bill, and a leaked
 service-role key is everything at once.

@@ -13,9 +13,9 @@
  */
 import { z } from 'zod';
 import { handle, ok, parseBody } from '@/lib/api';
-import { requireUser, createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { listUserObjects, removeObjects } from '@/lib/storage';
+import { deleteObjects, listUserObjects } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +28,8 @@ export const DELETE = handle(async (request: Request) => {
   await parseBody(request, bodySchema);
 
   // 1. images, with the caller's own session — storage RLS still applies here.
-  const supabase = await createClient();
-  const objects = await listUserObjects(supabase, user.id);
-  await removeObjects(supabase, objects);
+  const objects = await listUserObjects(user.id);
+  await deleteObjects(objects);
 
   // 2. the auth row. Cascades profiles → items, outfits, feedback, everything.
   const admin = createAdminClient();

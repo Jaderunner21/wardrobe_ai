@@ -87,6 +87,10 @@ jobs:
       - name: Gemini calls are budget-guarded
         run: bash scripts/check-budget-guard.sh
 
+      # module 04 acceptance — the provider is known to two files only
+      - name: Storage boundary
+        run: bash scripts/check-storage-boundary.sh
+
       - name: Build
         run: pnpm build
 

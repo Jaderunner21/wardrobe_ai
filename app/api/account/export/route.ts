@@ -10,7 +10,7 @@
 import { handle } from '@/lib/api';
 import { requireUser, createClient } from '@/lib/supabase/server';
 import { appError } from '@/lib/errors';
-import { EXPORT_URL_TTL_SECONDS, signedUrls } from '@/lib/storage';
+import { EXPORT_URL_TTL_SECONDS, signedUrlsFor } from '@/lib/storage';
 import {
   toFeedback,
   toItem,
@@ -78,7 +78,7 @@ export const GET = handle(async () => {
   // One signed URL per stored object, valid 24h. A path that fails to sign is simply
   // absent from the map rather than failing the export.
   const paths = itemRows.flatMap((r) => [r.storage_path, r.thumb_path]).filter(Boolean);
-  const urlsByPath = await signedUrls(supabase, paths, EXPORT_URL_TTL_SECONDS);
+  const urlsByPath = await signedUrlsFor(paths, EXPORT_URL_TTL_SECONDS);
   const imageUrls: Record<string, string> = {};
   for (const row of itemRows) {
     const url = urlsByPath[row.storage_path];
