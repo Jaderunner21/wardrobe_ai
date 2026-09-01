@@ -16,6 +16,7 @@ import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { AccountData, SignOutButton } from '@/components/settings/AccountData';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { toProfile, type ProfileRow } from '@/lib/mappers';
+import { getLimits, getUsage } from '@/lib/budget';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,10 @@ export default async function SettingsPage() {
     .single();
 
   const profile = data ? toProfile(data as unknown as ProfileRow) : null;
+
+  // Today's AI usage, shown to the user rather than only to us (module 12 §7). A cap
+  // the user can see coming is a cap they plan around instead of reporting as a bug.
+  const [usage, limits] = await Promise.all([getUsage(user.id), getLimits(user.id)]);
   const email = user.email ?? '';
   const initial = (profile?.displayName ?? email ?? '?').trim().charAt(0).toUpperCase();
 
@@ -77,6 +82,35 @@ export default async function SettingsPage() {
                     <dd className="text-text">{profile?.itemCount ?? 0}</dd>
                   </div>
                 </dl>
+
+                <section className="mt-6 rounded-[var(--radius)] bg-brand-50 p-4">
+                  <h3 className="text-meta font-semibold uppercase tracking-wide text-text-mute">
+                    AI use today
+                  </h3>
+                  <dl className="mt-2 grid gap-2 text-meta sm:grid-cols-3">
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-text-dim">Photo tags</dt>
+                      <dd className="text-text">
+                        {usage.tagCalls} / {limits.tag}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-text-dim">Outfit explanations</dt>
+                      <dd className="text-text">
+                        {usage.llmCalls} / {limits.rerank}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-text-dim">Stylist messages</dt>
+                      <dd className="text-text">
+                        {usage.chatCalls} / {limits.chat}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-2 text-meta text-text-mute">
+                    Resets at midnight, {profile?.timezone ?? 'Asia/Kolkata'}.
+                  </p>
+                </section>
 
                 <div className="mt-6">
                   <SignOutButton />

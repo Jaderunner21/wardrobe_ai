@@ -7,12 +7,12 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0 complete, L1 code complete (modules 04 and 05)
+## Status — L0 and L1 code complete, L2 started (module 12)
 
 ```
 L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
 L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓                     ← gate
-L2  Tagging         12 → 06
+L2  Tagging         12 ✓ → 06                                                    ← here
 L3  Recommendations 07 → 08 → 09 → 10 → 16(dashboard, outfits)
 L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──
 L5  AI ENGINE       19
@@ -35,6 +35,11 @@ upload flow with manual entry, drafts, archive, and the Bin with restore and per
 delete. Manual entry is built first on purpose (module 05 §1) — it is the permanent
 fallback for when tagging is down or wrong, and it doubles as the correction UI that
 produces the correction-rate metric.
+
+Module 12 adds the AI budget guard: per-user daily caps enforced as an atomic
+reservation in Postgres before any model call goes out, token accounting after it
+returns, and today's usage on the settings screen. Nothing calls a model yet — the
+guard is in place first, on purpose.
 
 Dashboard and outfits are still placeholder screens naming the module that fills them
 in. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
