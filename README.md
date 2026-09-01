@@ -7,13 +7,13 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0 and L1 code complete, L2 code complete
+## Status — L0-L2 code complete, L3 started (module 07)
 
 ```
 L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
 L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓                     ← gate
 L2  Tagging         12 ✓ → 06 ✓                                                  ← gate
-L3  Recommendations 07 → 08 → 09 → 10 → 16(dashboard, outfits)
+L3  Recommendations 07 ✓ → 08 → 09 → 10 → 16(dashboard, outfits)                 ← here
 L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──
 L5  AI ENGINE       19
 L6  Production      13 → 14(full) → 15(full)
@@ -47,6 +47,11 @@ per-card confidence badges on the Review & Edit screen. Tagging runs at concurre
 so cards fill in while you are still reading the first one. Every failure mode —
 budget spent, model down, schema violation — leaves the card blank, editable and
 retryable rather than blocking the upload.
+
+Module 07 adds weather: Open-Meteo behind a swappable provider interface, cached per
+city per day rather than per user, temperature buckets the recommendation engine keys
+on, and degradation to a stale row or to null rather than an error — a weather outage
+makes outfits weather-blind, never broken.
 
 Dashboard and outfits are still placeholder screens naming the module that fills them
 in. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
