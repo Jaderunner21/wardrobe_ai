@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"slot\":\"headwear\",\"categorySlug\":\"hats\",\"subtype\":\"beanie\",\"primaryColor\":\"grey\",\"colorHex\":\"#8a8a85\",\"secondaryColors\":[],\"pattern\":\"solid\",\"material\":\"wool\",\"formality\":2,\"warmth\":4,\"seasons\":[\"winter\"],\"style\":\"casual\",\"confidence\":0.77}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 255, "candidatesTokenCount": 90 }
+}

@@ -1,0 +1,20 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"slot\":\"top\",\"categorySlug\":\"tops\",\"subtype\":\"oxford shirt\",\"primaryColor\":\"light blue\",\"colorHex\":\"#a8c4dd\",\"secondaryColors\":[\"white\"],\"pattern\":\"solid\",\"material\":\"cotton\",\"formality\":3,\"warmth\":2,\"seasons\":[\"summer\",\"monsoon\"],\"style\":\"business\",\"confidence\":0.92}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 271,
+    "candidatesTokenCount": 118,
+    "totalTokenCount": 389
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"slot\":\"top\",\"categorySlug\":\"tops\",\"subtype\":\"puffer jacket\",\"primaryColor\":\"black\",\"colorHex\":\"#111111\",\"secondaryColors\":[],\"pattern\":\"solid\",\"material\":\"nylon\",\"formality\":7,\"warmth\":5,\"seasons\":[\"winter\"],\"style\":\"casual\",\"confidence\":0.81}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 260, "candidatesTokenCount": 96 }
+}

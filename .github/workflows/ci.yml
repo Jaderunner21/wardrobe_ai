@@ -60,7 +60,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
+          # Supabase supplies these roles, schemas and helpers; CI runs a stock
+          # Postgres, so they are stubbed here. 0007 grants EXECUTE to
+          # `authenticated`, and granting to a role that does not exist aborts the
+          # migration — psql exits 3 and the whole job fails.
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "create role anon nologin;" \
+            -c "create role authenticated nologin;" \
+            -c "create role service_role nologin;" \
             -c "create schema if not exists auth;" \
             -c "create table if not exists auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);" \
             -c "create schema if not exists storage;" \

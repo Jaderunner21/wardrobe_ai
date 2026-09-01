@@ -1,0 +1,9 @@
+{
+  "candidates": [
+    {
+      "content": { "parts": [{ "text": "{\"slot\":\"top\",\"categorySlug\":\"to" }], "role": "model" },
+      "finishReason": "MAX_TOKENS"
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 251, "candidatesTokenCount": 512 }
+}

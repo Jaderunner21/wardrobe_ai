@@ -86,15 +86,24 @@ export function ItemDraftForm({
   previewUrl,
   fields,
   categories,
+  tag = 'skipped',
+  confidence,
+  tagError,
   onChange,
   onRemove,
+  onRetryTag,
 }: {
   index: number;
   previewUrl?: string;
   fields: DraftFields;
   categories: Category[];
+  /** Tagging state for this card — module 06 §4: the item is editable throughout. */
+  tag?: 'pending' | 'done' | 'failed' | 'skipped';
+  confidence?: number | null;
+  tagError?: string;
   onChange: (next: DraftFields) => void;
   onRemove: () => void;
+  onRetryTag?: () => void;
 }) {
   const [expanded, setExpanded] = useState(index === 0);
   const [showPurchase, setShowPurchase] = useState(false);
@@ -121,14 +130,53 @@ export function ItemDraftForm({
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-card font-medium">
-            {fields.name.trim() || `Item ${index + 1}`}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-card font-medium">
+              {fields.name.trim() || `AI Analysis #${index + 1}`}
+            </p>
+
+            {tag === 'pending' && (
+              <span className="animate-pulse rounded-full bg-brand-100 px-2 py-0.5 text-chip font-medium text-brand-800">
+                Analysing…
+              </span>
+            )}
+            {tag === 'done' && confidence != null && (
+              <span className="rounded-full bg-brand-100 px-2 py-0.5 text-chip font-medium text-brand-800">
+                {Math.round(confidence * 100)}% confident
+              </span>
+            )}
+            {tag === 'failed' && (
+              <span className="rounded-full bg-danger-50 px-2 py-0.5 text-chip font-medium text-danger-600">
+                Tagging failed
+              </span>
+            )}
+            {tag === 'skipped' && (
+              <span className="rounded-full bg-bg px-2 py-0.5 text-chip font-medium text-text-mute">
+                Fill in by hand
+              </span>
+            )}
+          </div>
+
           <p className="mt-0.5 text-meta text-text-dim">
             {[category?.name, fields.style ? STYLE_LABELS[fields.style as Style] : null, fields.primaryColor]
               .filter(Boolean)
               .join(' · ') || 'Not described yet'}
           </p>
+
+          {tagError && (
+            <p className="mt-0.5 text-meta text-text-mute">
+              {tagError}
+              {onRetryTag && (
+                <button
+                  type="button"
+                  onClick={onRetryTag}
+                  className="ml-2 font-medium text-brand-700 underline underline-offset-4"
+                >
+                  Retry
+                </button>
+              )}
+            </p>
+          )}
         </div>
 
         <button

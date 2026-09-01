@@ -5,15 +5,17 @@
 # model must also call assertBudget; lib/gemini.ts itself is the one exception, since
 # it is the wrapper the guard is applied around.
 #
-# Vacuously true until module 12 and module 06 land. It stays in CI from L0 so the
-# first Gemini call ever written arrives with the check already watching.
+# Live since module 06: app/api/items/tag/route.ts is the first call site, and
+# removing its assertBudget call fails this check.
 set -euo pipefail
 
 fail=0
 
 while IFS= read -r file; do
   [ "$file" = "lib/gemini.ts" ] && continue
-  if ! grep -q "assertBudget" "$file"; then
+  # Match a CALL, not the word: a file that imports assertBudget and never invokes
+  # it passed the earlier version of this check, which made the guard decorative.
+  if ! grep -qE "assertBudget[[:space:]]*\(" "$file"; then
     echo "FAIL: $file calls the model without assertBudget"
     fail=1
   fi

@@ -1,16 +1,19 @@
 'use client';
 
 /**
- * Smart Upload — module 04 §5, §5b and module 16 §4.
+ * Smart Upload with AI — module 04 §5, §5b, module 06 §5 and module 16 §4.
  *
- *   Choose Photos → per-file progress → Review & Edit → Save All to Wardrobe (N)
+ *   Choose Photos → per-file progress → Analyzing with AI → Review & Edit
+ *   → Save All to Wardrobe (N)
  *
  * Nothing reaches the wardrobe until Save All. The rows exist from the moment the
- * bytes land (they have to: the quota, the dedupe index and orphan-prevention all
- * need a row) but they are `draft`, and drafts are invisible everywhere except here.
+ * bytes land (the quota, the dedupe index and orphan-prevention all need a row) but
+ * they are `draft`, and drafts are invisible everywhere except here.
  *
- * Per-file progress is the addition the prototype lacks. A bulk upload of twenty
- * photos with no visible progress is where users abandon.
+ * Tagging runs at concurrency 2 and fills the cards in as it goes, so the user is
+ * reading the first result while the fourth is still being analysed. A tag failure
+ * leaves that one card blank and editable — the batch never stops, and no AI outage
+ * can stop someone adding a garment by hand (module 05 §1).
  */
 import { useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
@@ -24,7 +27,7 @@ import {
   emptyDraft,
   type DraftFields,
 } from '@/components/upload/ItemDraftForm';
-import type { ApiError, Category } from '@/types';
+import type { ApiError, Category, Item } from '@/types';
 
 type Phase = 'choose' | 'uploading' | 'review' | 'saved';
 
@@ -32,7 +35,14 @@ interface Draft {
   itemId: string;
   previewUrl?: string;
   fields: DraftFields;
+  /** 'pending' until tagging settles; the card is editable in every state. */
+  tag: 'pending' | 'done' | 'failed' | 'skipped';
+  confidence?: number | null;
+  tagError?: string;
 }
+
+/** Concurrency 2 — module 06 §5. Each call is 2–4s; two in flight keeps it moving. */
+const TAG_CONCURRENCY = 2;
 
 export function UploadFlow({ categories }: { categories: Category[] }) {
   const router = useRouter();
@@ -45,11 +55,85 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
 
+  /** Cards the user has typed into are never overwritten by a late tag result. */
+  const edited = useRef<Set<string>>(new Set());
+
+  const applyTag = useCallback(
+    (itemId: string, item: Item) => {
+      setDrafts((current) =>
+        current.map((draft) => {
+          if (draft.itemId !== itemId) return draft;
+          const fields = edited.current.has(itemId)
+            ? draft.fields
+            : draftFromItem(item, draft.fields);
+          return { ...draft, fields, tag: 'done', confidence: item.aiConfidence };
+        }),
+      );
+    },
+    [],
+  );
+
+  const tagAll = useCallback(
+    async (itemIds: string[]) => {
+      let next = 0;
+      const worker = async () => {
+        while (next < itemIds.length) {
+          const itemId = itemIds[next++];
+          if (!itemId) return;
+
+          try {
+            const response = await fetch('/api/items/tag', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ itemId }),
+            });
+
+            if (!response.ok) {
+              const body = (await response.json().catch(() => null)) as ApiError | null;
+              const code = body?.error.code;
+              setDrafts((current) =>
+                current.map((d) =>
+                  d.itemId === itemId
+                    ? {
+                        ...d,
+                        // Out of budget is not a failure of this photo — it is the day's
+                        // allowance, and the card is filled in by hand instead.
+                        tag: code === 'AI_BUDGET_EXCEEDED' ? 'skipped' : 'failed',
+                        tagError: body?.error.message,
+                      }
+                    : d,
+                ),
+              );
+              continue;
+            }
+
+            const { item } = (await response.json()) as { item: Item };
+            applyTag(itemId, item);
+          } catch {
+            setDrafts((current) =>
+              current.map((d) =>
+                d.itemId === itemId
+                  ? { ...d, tag: 'failed', tagError: 'Could not reach the tagger.' }
+                  : d,
+              ),
+            );
+          }
+        }
+      };
+
+      await Promise.all(
+        Array.from({ length: Math.min(TAG_CONCURRENCY, itemIds.length) }, () => worker()),
+      );
+    },
+    [applyTag],
+  );
+
   const start = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
       setError(null);
       setPhase('uploading');
+      edited.current = new Set();
 
       const queued = files.map(newTask);
       setTasks(queued);
@@ -90,14 +174,25 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
           itemId: task.result.itemId,
           previewUrl: task.previewUrl,
           fields: emptyDraft(),
+          tag: 'pending',
         });
       }
 
       setDrafts(created);
       setPhase(created.length > 0 ? 'review' : 'choose');
+
+      // Straight into review; the cards fill in underneath the user as tags land.
+      if (created.length > 0) void tagAll(created.map((d) => d.itemId));
     },
-    [],
+    [tagAll],
   );
+
+  async function retryTag(itemId: string) {
+    setDrafts((current) =>
+      current.map((d) => (d.itemId === itemId ? { ...d, tag: 'pending', tagError: undefined } : d)),
+    );
+    await tagAll([itemId]);
+  }
 
   async function saveAll() {
     setSaving(true);
@@ -176,6 +271,8 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
     );
   }
 
+  const analysing = drafts.filter((d) => d.tag === 'pending').length;
+
   return (
     <div className="space-y-6">
       {phase === 'choose' && (
@@ -249,7 +346,11 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
       {phase === 'review' && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-section font-semibold tracking-tight">Review &amp; Edit Items</h2>
+            <h2 className="text-section font-semibold tracking-tight">
+              {analysing > 0
+                ? `⟳ Analyzing with AI… (${analysing} item${analysing === 1 ? '' : 's'})`
+                : 'Review & Edit Items'}
+            </h2>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -284,11 +385,16 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
                 previewUrl={draft.previewUrl}
                 fields={draft.fields}
                 categories={categories}
-                onChange={(fields) =>
+                tag={draft.tag}
+                confidence={draft.confidence}
+                tagError={draft.tagError}
+                onRetryTag={() => retryTag(draft.itemId)}
+                onChange={(fields) => {
+                  edited.current.add(draft.itemId);
                   setDrafts((current) =>
                     current.map((d) => (d.itemId === draft.itemId ? { ...d, fields } : d)),
-                  )
-                }
+                  );
+                }}
                 onRemove={() => {
                   // Drop it from the batch and bin the row, so its bytes are collected
                   // rather than sitting against the quota forever.
@@ -306,6 +412,21 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
       )}
     </div>
   );
+}
+
+/** The tagged item, as the Review & Edit form's fields. */
+function draftFromItem(item: Item, current: DraftFields): DraftFields {
+  return {
+    ...current,
+    name: item.name ?? current.name,
+    categoryId: item.categoryId ?? current.categoryId,
+    subtype: item.subtype ?? current.subtype,
+    primaryColor: item.primaryColor ?? current.primaryColor,
+    colorHex: item.colorHex ?? current.colorHex,
+    style: item.style ?? current.style,
+    seasons: item.seasons.length > 0 ? item.seasons : current.seasons,
+    // brand, price, purchase details and notes are never model-filled (module 17 §3).
+  };
 }
 
 const PHASE_LABEL: Record<UploadTask['phase'], string> = {
