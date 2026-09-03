@@ -4,8 +4,8 @@
  * An outfit card — module 16 §4: title, context chips, item thumbnails with their
  * category labels, and a "Why This Works" panel.
  *
- * The thumbs up/down the prototype shows belong to module 10 and arrive with it. A
- * button that does nothing is worse than a button that is not there yet.
+ * Thumbs and "Wore this" post to module 10, which updates the style profile
+ * synchronously — so the next generation already reflects the vote.
  */
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -39,7 +39,27 @@ export function OutfitCard({
   const router = useRouter();
   const [planning, setPlanning] = useState(false);
   const [plannedFor, setPlannedFor] = useState(outfit.plannedFor ?? '');
+  const [voted, setVoted] = useState<'up' | 'down' | null>(null);
+  const [worn, setWorn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function sendFeedback(kind: 'up' | 'down' | 'worn') {
+    setError(null);
+    const response = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ outfitId: outfit.id, kind }),
+    });
+
+    if (!response.ok) {
+      setError('Could not record that.');
+      return;
+    }
+
+    if (kind === 'worn') setWorn(true);
+    else setVoted(kind);
+    router.refresh();
+  }
 
   const title =
     outfit.items
@@ -115,6 +135,44 @@ export function OutfitCard({
       )}
 
       <footer className="mt-3 flex flex-wrap items-center gap-2">
+        {/* Feedback only makes sense once the outfit has a row to point at. */}
+        {!onSave && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => sendFeedback('up')}
+              aria-pressed={voted === 'up'}
+              aria-label="I like this outfit"
+              className={[
+                'rounded-[var(--radius)] px-2 py-1.5 text-meta transition-colors',
+                voted === 'up' ? 'bg-brand-100 text-brand-700' : 'text-text-dim hover:bg-brand-50',
+              ].join(' ')}
+            >
+              👍
+            </button>
+            <button
+              type="button"
+              onClick={() => sendFeedback('down')}
+              aria-pressed={voted === 'down'}
+              aria-label="Not for me"
+              className={[
+                'rounded-[var(--radius)] px-2 py-1.5 text-meta transition-colors',
+                voted === 'down' ? 'bg-danger-50 text-danger-600' : 'text-text-dim hover:bg-brand-50',
+              ].join(' ')}
+            >
+              👎
+            </button>
+            <button
+              type="button"
+              onClick={() => sendFeedback('worn')}
+              disabled={worn}
+              className="rounded-[var(--radius)] border border-border px-3 py-1.5 text-meta font-medium hover:bg-brand-50 disabled:opacity-60"
+            >
+              {worn ? 'Worn today' : 'Wore this'}
+            </button>
+          </div>
+        )}
+
         {onSave && (
           <button
             type="button"

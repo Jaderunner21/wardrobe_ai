@@ -17,6 +17,8 @@ import { AccountData, SignOutButton } from '@/components/settings/AccountData';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { toProfile, type ProfileRow } from '@/lib/mappers';
 import { getLimits, getUsage } from '@/lib/budget';
+import { StyleProfilePanel } from '@/components/settings/StyleProfilePanel';
+import { toStyleProfile, type StyleProfileRow } from '@/lib/mappers';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +40,20 @@ export default async function SettingsPage() {
 
   // Today's AI usage, shown to the user rather than only to us (module 12 §7). A cap
   // the user can see coming is a cap they plan around instead of reporting as a bug.
-  const [usage, limits] = await Promise.all([getUsage(user.id), getLimits(user.id)]);
+  const [usage, limits, styleRes] = await Promise.all([
+    getUsage(user.id),
+    getLimits(user.id),
+    supabase
+      .from('style_profiles')
+      .select(
+        'user_id, color_affinity, category_affinity, formality_bias, novelty_bias, rejected_pairs, sample_count, updated_at',
+      )
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ]);
+  const styleProfile = styleRes.data
+    ? toStyleProfile(styleRes.data as unknown as StyleProfileRow)
+    : null;
   const email = user.email ?? '';
   const initial = (profile?.displayName ?? email ?? '?').trim().charAt(0).toUpperCase();
 
@@ -116,6 +131,15 @@ export default async function SettingsPage() {
                   <SignOutButton />
                 </div>
               </section>
+            ),
+          },
+          {
+            id: 'style',
+            label: 'Style',
+            panel: styleProfile ? (
+              <StyleProfilePanel profile={styleProfile} />
+            ) : (
+              <NotBuiltYet module="module 10" layer="L3" />
             ),
           },
           {

@@ -7,13 +7,13 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0-L2 code complete, L3 in progress (modules 07, 08, 09)
+## Status — L0-L2 code complete, L3 in progress (07, 08, 09, 10)
 
 ```
 L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
 L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓                     ← gate
 L2  Tagging         12 ✓ → 06 ✓                                                  ← gate
-L3  Recommendations 07 ✓ → 08 ✓ → 09 ✓ → 10 → 16(dashboard, outfits)             ← here
+L3  Recommendations 07 ✓ → 08 ✓ → 09 ✓ → 10 ✓ → 16(dashboard)                    ← here
 L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──
 L5  AI ENGINE       19
 L6  Production      13 → 14(full) → 15(full)
@@ -64,6 +64,13 @@ Module 09 adds outfits and the planner: one endpoint for both ways an outfit is 
 (saving a recommendation, or building one by hand), a saved-outfits list, and a month
 calendar that renders in two queries rather than 124. Planning stores an intent for a
 date, not a forecast for it.
+
+Module 10 adds feedback and learning: thumbs and "Wore this" on outfits, "Wore Today"
+on every item card, and a style profile that shifts future recommendations. The whole
+learning system is an exponentially-weighted running average in a JSONB column — the
+personalisation is real and it is arithmetic, and the second half of that is not a
+weakness. Three thumbs-down on the same colour pairing becomes a hard veto, visible and
+clearable under Settings → Style.
 
 The dashboard is still a placeholder naming the module that fills it in. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
 passed until the migrations are applied and real items go in.

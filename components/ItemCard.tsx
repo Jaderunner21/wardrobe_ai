@@ -5,10 +5,10 @@
  * chips over the bottom-left, then title, category pill and brand, style and colour,
  * seasons.
  *
- * The prototype's "Wore Today" button is deliberately not here yet: it writes a
- * `feedback` row, and `feedback` belongs to module 10. It arrives with L3 rather than
- * being faked now — a button that does nothing is worse than a button that is not
- * there.
+ * "Wore Today" is one tap on the thing the user is already looking at, which is better
+ * than routing wear-tracking through outfits (module 16 §3). It posts a `worn` feedback
+ * row; `log_wear` is idempotent per day, so a second tap is a no-op rather than a
+ * double count.
  */
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -31,7 +31,24 @@ export function ItemCard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [favourite, setFavourite] = useState(item.favourite);
+  const [worn, setWorn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function woreToday() {
+    setError(null);
+    const response = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ itemId: item.id, kind: 'worn' }),
+    });
+
+    if (!response.ok) {
+      setError('Could not log that.');
+      return;
+    }
+    setWorn(true);
+    startTransition(() => router.refresh());
+  }
 
   const label = item.name ?? item.subtype ?? 'Untitled item';
 
@@ -124,6 +141,15 @@ export function ItemCard({
         </div>
 
         <p className="text-meta text-text-mute">{seasonSummary(item.seasons)}</p>
+
+        <button
+          type="button"
+          onClick={woreToday}
+          disabled={worn || pending}
+          className="w-full rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-meta font-medium text-text transition-colors hover:bg-brand-50 disabled:opacity-60"
+        >
+          {worn ? 'Logged for today' : 'Wore Today'}
+        </button>
 
         {error && (
           <p role="alert" className="text-meta text-danger-600">
