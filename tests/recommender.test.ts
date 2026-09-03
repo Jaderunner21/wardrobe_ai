@@ -370,3 +370,56 @@ describe('pairKey and vetoes', () => {
     expect(isVetoed(a, b, [['navy', 'black']])).toBe(false);
   });
 });
+
+/**
+ * Module 18 §6. The engine's job here is to rank, not to decide for the user: a shirt
+ * they rated as faded should stop outranking one they rated as sound, and should still
+ * be recommendable when it is all they have.
+ */
+describe('condition deprioritises but never excludes', () => {
+  /** One outfit is possible, so the rating cannot be dodged by picking another top. */
+  const oneOutfit = (conditionOfTop: 1 | 5) => [
+    item({ slot: 'top', primaryColor: 'white', colorHex: HEX.white, condition: conditionOfTop }),
+    item({ slot: 'bottom', primaryColor: 'beige', colorHex: HEX.beige }),
+    item({ slot: 'footwear', primaryColor: 'brown', colorHex: HEX.brown }),
+  ];
+
+  it('scores the same outfit lower when a garment in it is worn out', () => {
+    const sound = recommend(context({ items: oneOutfit(5), limit: 1 }));
+    const worn = recommend(context({ items: oneOutfit(1), limit: 1 }));
+
+    expect(sound.recommendations).toHaveLength(1);
+    expect(worn.recommendations).toHaveLength(1);
+    // Same wardrobe, same weather, one rating different — the score must drop.
+    expect(worn.recommendations[0]!.score).toBeLessThan(sound.recommendations[0]!.score);
+  });
+
+  it('prefers the sound garment when it has a choice', () => {
+    const ctx = context({
+      items: [
+        item({ slot: 'top', primaryColor: 'white', colorHex: HEX.white, condition: 1 }),
+        item({ slot: 'top', primaryColor: 'white', colorHex: HEX.white, condition: 5 }),
+        item({ slot: 'bottom', primaryColor: 'beige', colorHex: HEX.beige }),
+        item({ slot: 'footwear', primaryColor: 'brown', colorHex: HEX.brown }),
+      ],
+      limit: 1,
+    });
+
+    const top = recommend(ctx).recommendations[0]!;
+    expect(top.items.find((i) => i.slot === 'top')!.condition).toBe(5);
+  });
+
+  it('still recommends a wardrobe where everything is worn out', () => {
+    const ctx = context({
+      items: [
+        item({ slot: 'top', primaryColor: 'white', colorHex: HEX.white, condition: 1 }),
+        item({ slot: 'bottom', primaryColor: 'navy', colorHex: HEX.navy, condition: 1 }),
+        item({ slot: 'footwear', primaryColor: 'brown', colorHex: HEX.brown, condition: 1 }),
+      ],
+    });
+
+    const result = recommend(ctx);
+    expect(result.recommendations.length).toBeGreaterThan(0);
+    expect(result.reason).toBeNull();
+  });
+});

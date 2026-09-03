@@ -8,6 +8,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isStale } from '@/lib/cpw';
+import { confidenceNote, NEEDS_REPLACING_AT } from '@/lib/condition';
 
 export interface Insights {
   /** Category id the user actually wears most, by total wears rather than item count. */
@@ -21,15 +22,29 @@ export interface Insights {
    * Module 17 §5: cost-per-wear is what gives this panel something worth looking at.
    * Most Worn Category and Wardrobe Diversity are weak numbers on their own.
    */
-  bestValue: { id: string; name: string | null; costPerWear: number } | null;
+  bestValue: {
+    id: string;
+    name: string | null;
+    costPerWear: number;
+    /**
+     * "Based mostly on your estimate", when most of that item's wear history was
+     * guessed at rather than logged — module 18 §3b. A cost-per-wear standing on a
+     * remembered 80 is still worth showing; presenting it as measured is not.
+     */
+    caveat: string | null;
+  } | null;
   /** A fact the user can act on, never a verdict on the purchase. */
   staleCount: number;
+  /** Module 18 §6: how many garments the user has rated as failing. */
+  needsReplacing: number;
 }
 
 export async function styleInsights(supabase: SupabaseClient): Promise<Insights> {
   const { data, error } = await supabase
     .from('items')
-    .select('id, name, category_id, wear_count, price, cost_per_wear, last_worn_on, created_at')
+    .select(
+      'id, name, category_id, wear_count, initial_wear_count, condition, price, cost_per_wear, last_worn_on, created_at',
+    )
     .eq('status', 'ready')
     .eq('archived', false)
     .is('deleted_at', null);
@@ -40,6 +55,8 @@ export async function styleInsights(supabase: SupabaseClient): Promise<Insights>
     name: string | null;
     category_id: string | null;
     wear_count: number;
+    initial_wear_count: number;
+    condition: number | null;
     price: number | null;
     cost_per_wear: number | null;
     last_worn_on: string | null;
@@ -72,8 +89,11 @@ export async function styleInsights(supabase: SupabaseClient): Promise<Insights>
   // wear — an unworn item's CPW is its full price, which is honest but not an insight.
   let bestValue: Insights['bestValue'] = null;
   let staleCount = 0;
+  let needsReplacing = 0;
 
   for (const row of rows) {
+    if (row.condition !== null && row.condition <= NEEDS_REPLACING_AT) needsReplacing += 1;
+
     if (isStale({ lastWornOn: row.last_worn_on, createdAt: row.created_at, wearCount: row.wear_count })) {
       staleCount += 1;
     }
@@ -81,7 +101,15 @@ export async function styleInsights(supabase: SupabaseClient): Promise<Insights>
     if (row.price === null || row.wear_count === 0) continue;
     const cpw = row.cost_per_wear ?? row.price / row.wear_count;
     if (bestValue === null || cpw < bestValue.costPerWear) {
-      bestValue = { id: row.id, name: row.name, costPerWear: Number(cpw) };
+      bestValue = {
+        id: row.id,
+        name: row.name,
+        costPerWear: Number(cpw),
+        caveat: confidenceNote({
+          wearCount: row.wear_count,
+          initialWearCount: row.initial_wear_count,
+        }),
+      };
     }
   }
 
@@ -94,5 +122,6 @@ export async function styleInsights(supabase: SupabaseClient): Promise<Insights>
     neverWorn,
     bestValue,
     staleCount,
+    needsReplacing,
   };
 }

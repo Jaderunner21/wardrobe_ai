@@ -9,7 +9,10 @@
  * which is what produces the correction-rate metric.
  *
  * Purchase details stay collapsed and optional: they are user-entered only, and the
- * AI will never fill them (module 17 §3).
+ * AI will never fill them (module 17 §3). The same disclosure carries module 18 §3b's
+ * one question about an already-owned garment — a jacket you have had for two years
+ * starts at zero wears, which makes its cost-per-wear wrong by a factor of eighty and
+ * its condition history meaningless. Asked once, skippable, defaults to zero.
  */
 import { useState } from 'react';
 import { SEASONS, STYLES } from '@/app/api/items/schemas';
@@ -30,6 +33,8 @@ export interface DraftFields {
   price: string;
   purchasedOn: string;
   retailer: string;
+  /** "Roughly how many times have you worn this?" — blank means don't touch it. */
+  wearCount: string;
 }
 
 export const emptyDraft = (): DraftFields => ({
@@ -46,6 +51,7 @@ export const emptyDraft = (): DraftFields => ({
   price: '',
   purchasedOn: '',
   retailer: '',
+  wearCount: '',
 });
 
 /**
@@ -77,6 +83,14 @@ export function draftToPatch(fields: DraftFields, categories: Category[]) {
     price: fields.price.trim() === '' ? null : Number(fields.price),
     purchasedOn: text(fields.purchasedOn),
     retailer: text(fields.retailer),
+    /**
+     * Absent rather than zero when the field is blank. A blank means "I did not say",
+     * and sending 0 would overwrite a real count with a guess — the PATCH route routes
+     * this through `set_wear_count()`, which also records the estimated part.
+     */
+    ...(fields.wearCount.trim() === ''
+      ? {}
+      : { wearCount: Math.max(0, Math.trunc(Number(fields.wearCount))) }),
     status: 'draft' as const,
   };
 }
@@ -362,6 +376,17 @@ export function ItemDraftForm({
                     value={fields.retailer}
                     onChange={(e) => set('retailer', e.target.value)}
                     placeholder="Myntra"
+                    className={inputClass}
+                  />
+                </Field>
+
+                {/* Module 18 §3b — asked once, for a garment the user already owns. */}
+                <Field label="Worn about this many times" wide>
+                  <input
+                    value={fields.wearCount}
+                    onChange={(e) => set('wearCount', e.target.value.replace(/[^0-9]/g, ''))}
+                    inputMode="numeric"
+                    placeholder="Leave blank if it's new"
                     className={inputClass}
                   />
                 </Field>

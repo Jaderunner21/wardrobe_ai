@@ -21,6 +21,17 @@ export const SEASONS = ['summer', 'monsoon', 'winter', 'all'] as const;
 export const PATTERNS = ['solid', 'striped', 'checked', 'printed', 'textured'] as const;
 export const SORTS = ['recent', 'least-worn', 'recently-worn', 'cost-per-wear'] as const;
 
+/** Why an item left the wardrobe — module 18 §5. Always skippable, never inferred. */
+export const RETIRED_REASONS = [
+  'worn_out',
+  'no_longer_fits',
+  'disliked',
+  'sold',
+  'donated',
+  'lost',
+  'other',
+] as const;
+
 /**
  * Formality and warmth are 1..5 unions in `types/index.ts`, not plain numbers, so the
  * schema has to produce the union too — otherwise every consumer needs a cast, and a
@@ -89,10 +100,34 @@ export const patchItemSchema = z
     favourite: z.boolean().optional(),
     archived: z.boolean().optional(),
     lastWornOn: z.string().date().nullish(),
+    /**
+     * The wear count is the user's number — module 18 §3b. Written through
+     * `set_wear_count()`, never as a plain column update, so the estimated part lands
+     * in `initial_wear_count` and a measured 40 stays distinguishable from a guessed
+     * one. The database rejects a negative count too; this is the friendlier refusal.
+     */
+    wearCount: z.number().int().min(0).max(100_000).optional(),
+    /** Module 18 §5. Set when an item is binned or archived; skipping leaves it null. */
+    retiredReason: z.enum(RETIRED_REASONS).nullish(),
     /** The upload screen flips draft → ready; nothing else may set a status. */
     status: z.enum(['draft', 'ready']).optional(),
   })
   .refine((body) => Object.keys(body).length > 0, { message: 'Nothing to update.' });
+
+/**
+ * POST /api/items/[id]/condition — module 18 §1. Five levels, user-rated only, and the
+ * only writer is `rate_condition()` so the log row and the item can never drift.
+ */
+export const rateConditionSchema = z.object({
+  condition: oneToFive,
+  note: z.string().trim().max(500).nullish(),
+});
+
+/**
+ * POST /api/items/[id]/wore — an optional past date, for a wearing the user forgot to
+ * log. A future date is refused by `log_wear()`.
+ */
+export const woreSchema = z.object({ wornOn: z.string().date().optional() });
 
 export const itemIdsSchema = z.object({
   itemIds: z.array(z.string().uuid()).min(1).max(50),
@@ -106,11 +141,14 @@ export const listQuerySchema = z.object({
   q: z.string().trim().min(1).max(80).optional(),
   favourite: z.coerce.boolean().optional(),
   archived: z.coerce.boolean().optional(),
+  /** Module 18 §6's wardrobe filter: condition <= 2. */
+  needsReplacing: z.coerce.boolean().optional(),
   sort: z.enum(SORTS).default('recent'),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
+export type RateConditionBody = z.infer<typeof rateConditionSchema>;
 export type CreateItemBody = z.infer<typeof createItemSchema>;
 export type PatchItemBody = z.infer<typeof patchItemSchema>;
 export type ListQuery = z.infer<typeof listQuerySchema>;

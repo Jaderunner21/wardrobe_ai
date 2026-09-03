@@ -213,6 +213,8 @@ function asOutfit(
         favourite: item.favourite,
         archived: item.archived,
         wearCount: item.wearCount,
+        condition: item.condition,
+        conditionAtWear: item.conditionAtWear,
       },
     })),
   };

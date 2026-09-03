@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/primitives';
 import { ItemImage } from '@/components/ItemImage';
 import { UploadIcon } from '@/components/icons';
 import { TodaysOutfit } from '@/components/dashboard/TodaysOutfit';
+import { RetailerDurabilityPanel } from '@/components/dashboard/RetailerDurability';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { listItems } from '@/lib/items';
 import { styleInsights } from '@/lib/insights';
@@ -121,6 +122,9 @@ export default async function DashboardPage() {
           </section>
 
           <TodaysOutfit />
+
+          {/* Renders nothing until three items share a retailer — module 18 §4. */}
+          <RetailerDurabilityPanel supabase={supabase} currency={profile?.currency} />
         </div>
 
         <aside className="space-y-4">
@@ -151,7 +155,8 @@ export default async function DashboardPage() {
             }
             note={
               insights.bestValue
-                ? `${insights.bestValue.name ?? 'An item'} — per wear`
+                ? [insights.bestValue.name ?? 'An item', insights.bestValue.caveat ?? 'per wear']
+                    .join(' — ')
                 : 'Add a price to an item you wear often'
             }
           />
@@ -165,6 +170,16 @@ export default async function DashboardPage() {
                 : 'Everything has been worn at least once'
             }
           />
+
+          {/* Only when there is something to say — module 18 §6, and nothing here is a
+              verdict on a purchase: it is the user's own rating of their own clothes. */}
+          {insights.needsReplacing > 0 && (
+            <Tile
+              label="Needs Replacing"
+              value={String(insights.needsReplacing)}
+              note="You rated these as showing wear"
+            />
+          )}
         </aside>
       </div>
     </>

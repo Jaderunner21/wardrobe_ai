@@ -6,6 +6,7 @@
  * to go and fill in a form.
  */
 import { costPerWear, formatMoney, isStale, targetProgress } from '@/lib/cpw';
+import { confidenceNote } from '@/lib/condition';
 import type { Item, Profile } from '@/types';
 
 export function HistoryPanel({
@@ -16,6 +17,9 @@ export function HistoryPanel({
   profile: Pick<Profile, 'cpwTarget' | 'currency'>;
 }) {
   const cost = costPerWear(item, profile);
+  // Module 18 §3b: a cost-per-wear standing on a remembered 80 is still worth showing,
+  // but presenting it as measured is not.
+  const caveat = confidenceNote(item);
   const currency = item.currency ?? profile.currency;
   const progress = targetProgress(cost);
   const stale = isStale(item);
@@ -82,6 +86,10 @@ export function HistoryPanel({
             )}
           </p>
         </div>
+      )}
+
+      {caveat && item.price !== null && (
+        <p className="mt-2 text-meta text-text-mute">{caveat}.</p>
       )}
 
       {stale && (

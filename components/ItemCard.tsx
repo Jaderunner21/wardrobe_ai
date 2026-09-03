@@ -9,15 +9,30 @@
  * than routing wear-tracking through outfits (module 16 §3). It posts a `worn` feedback
  * row; `log_wear` is idempotent per day, so a second tap is a no-op rather than a
  * double count.
+ *
+ * Module 18 adds two things to the card and no more. A condition mark, but only at 2 or
+ * below, so failing garments are visible while browsing (§6). And the milestone rating
+ * prompt (§3) — at 10 wears, then every 15 since the last rating, never every wear,
+ * because a card that asks a question every time is a card people stop tapping.
  */
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { ItemImage } from '@/components/ItemImage';
-import { CategoryPill, ColorDot, TagChip, seasonSummary, STYLE_LABELS } from '@/components/primitives';
+import {
+  CategoryPill,
+  ColorDot,
+  ConditionDot,
+  TagChip,
+  seasonSummary,
+  STYLE_LABELS,
+} from '@/components/primitives';
 import { TrashIcon } from '@/components/icons';
+import { ConditionPrompt } from '@/components/wardrobe/ConditionPrompt';
+import { RetireReasonPrompt } from '@/components/wardrobe/RetireReasonPrompt';
+import { needsConditionRating } from '@/lib/condition';
 import type { ItemListView } from '@/lib/mappers';
-import type { Category } from '@/types';
+import type { Category, RetiredReason } from '@/types';
 
 export function ItemCard({
   item,
@@ -32,6 +47,7 @@ export function ItemCard({
   const [pending, startTransition] = useTransition();
   const [favourite, setFavourite] = useState(item.favourite);
   const [worn, setWorn] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function woreToday() {
@@ -47,6 +63,23 @@ export function ItemCard({
       return;
     }
     setWorn(true);
+    startTransition(() => router.refresh());
+  }
+
+  /**
+   * Module 18 §3b — mis-taps. The button sits on the card and is easy to hit by
+   * accident, or on the wrong garment, and one tap should always be undoable.
+   * `undo_wear` removes today's entry and recalculates `last_worn_on` from the wears
+   * that remain rather than guessing at it.
+   */
+  async function undoWear() {
+    setError(null);
+    const response = await fetch(`/api/items/${item.id}/wore`, { method: 'DELETE' });
+    if (!response.ok) {
+      setError('Could not undo that.');
+      return;
+    }
+    setWorn(false);
     startTransition(() => router.refresh());
   }
 
@@ -68,8 +101,11 @@ export function ItemCard({
     startTransition(() => router.refresh());
   }
 
-  async function moveToBin() {
-    const response = await fetch(`/api/items/${item.id}`, { method: 'DELETE' });
+  // Module 18 §5: one tap to say why, and Skip is a first-class answer.
+  async function moveToBin(reason: RetiredReason | null) {
+    setAsking(false);
+    const query = reason ? `?reason=${reason}` : '';
+    const response = await fetch(`/api/items/${item.id}${query}`, { method: 'DELETE' });
     if (!response.ok) {
       setError('Could not move that to the bin.');
       return;
@@ -106,7 +142,7 @@ export function ItemCard({
           </Link>
           <button
             type="button"
-            onClick={moveToBin}
+            onClick={() => setAsking(true)}
             aria-label={`Move ${label} to the bin`}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 text-text-dim backdrop-blur-sm hover:text-danger-600"
           >
@@ -114,14 +150,15 @@ export function ItemCard({
           </button>
         </div>
 
-        {item.userTags.length > 0 && (
-          <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] gap-1">
+        <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-1">
+          {item.userTags.length > 0 && (
             <TagChip
               label={item.userTags[0] ?? ''}
               more={item.userTags.length > 1 ? item.userTags.length - 1 : undefined}
             />
-          </div>
-        )}
+          )}
+          <ConditionDot condition={item.condition} />
+        </div>
       </div>
 
       <div className="space-y-2 p-4">
@@ -149,14 +186,46 @@ export function ItemCard({
 
         <p className="text-meta text-text-mute">{seasonSummary(item.seasons)}</p>
 
-        <button
-          type="button"
-          onClick={woreToday}
-          disabled={worn || pending}
-          className="w-full rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-meta font-medium text-text transition-colors hover:bg-brand-50 disabled:opacity-60"
-        >
-          {worn ? 'Logged for today' : 'Wore Today'}
-        </button>
+        {worn ? (
+          <div className="flex items-center gap-2">
+            <span className="flex-1 rounded-[var(--radius)] bg-brand-50 px-3 py-2 text-center text-meta font-medium text-brand-700">
+              Logged for today
+            </span>
+            <button
+              type="button"
+              onClick={undoWear}
+              disabled={pending}
+              className="shrink-0 rounded-[var(--radius)] px-2 py-2 text-meta font-medium text-brand-700 underline underline-offset-4 disabled:opacity-60"
+            >
+              Undo
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={woreToday}
+            disabled={pending}
+            className="w-full rounded-[var(--radius)] border border-border bg-surface px-3 py-2 text-meta font-medium text-text transition-colors hover:bg-brand-50 disabled:opacity-60"
+          >
+            Wore Today
+          </button>
+        )}
+
+        {needsConditionRating(item) && (
+          <ConditionPrompt
+            itemId={item.id}
+            condition={item.condition}
+            onRated={() => startTransition(() => router.refresh())}
+          />
+        )}
+
+        {asking && (
+          <RetireReasonPrompt
+            title="Why is it going?"
+            onChoose={moveToBin}
+            onCancel={() => setAsking(false)}
+          />
+        )}
 
         {error && (
           <p role="alert" className="text-meta text-danger-600">

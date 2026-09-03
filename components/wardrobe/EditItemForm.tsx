@@ -135,5 +135,8 @@ function fieldsFrom(item: Item): DraftFields {
     price: item.price === null ? '' : String(item.price),
     purchasedOn: item.purchasedOn ?? '',
     retailer: item.retailer ?? '',
+    // Editable here too — module 18 §3b: forgetting to log for a week is normal, and
+    // correcting the number should not need a support request.
+    wearCount: String(item.wearCount),
   };
 }

@@ -135,6 +135,8 @@ export type ItemListRow = Pick<
   | 'favourite'
   | 'archived'
   | 'wear_count'
+  | 'condition'
+  | 'condition_at_wear'
 >;
 
 export type ItemListView = Pick<
@@ -157,6 +159,8 @@ export type ItemListView = Pick<
   | 'favourite'
   | 'archived'
   | 'wearCount'
+  | 'condition'
+  | 'conditionAtWear'
 >;
 
 export interface StyleProfileRow {
@@ -328,6 +332,8 @@ export const toItemListView = (r: ItemListRow): ItemListView => ({
   favourite: r.favourite,
   archived: r.archived,
   wearCount: r.wear_count,
+  condition: r.condition,
+  conditionAtWear: r.condition_at_wear,
 });
 
 export const toStyleProfile = (r: StyleProfileRow): StyleProfile => ({
@@ -429,6 +435,11 @@ export type ItemPatch = Partial<
     | 'purchasedOn'
     | 'retailer'
     | 'cpwTarget'
+    /**
+     * Module 18 §5. `retiredAt` is stamped by the route, not sent by the client —
+     * "when" is not the client's fact to assert.
+     */
+    | 'retiredReason'
   >
 >;
 
@@ -459,6 +470,7 @@ export function toItemRow(patch: ItemPatch): Partial<ItemRow> {
   if (patch.purchasedOn !== undefined) row.purchased_on = patch.purchasedOn;
   if (patch.retailer !== undefined) row.retailer = patch.retailer;
   if (patch.cpwTarget !== undefined) row.cpw_target = patch.cpwTarget;
+  if (patch.retiredReason !== undefined) row.retired_reason = patch.retiredReason;
   return row;
 }
 

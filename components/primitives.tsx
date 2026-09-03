@@ -2,7 +2,8 @@
  * The small repeated pieces from module 16 §3. Every colour is a token; there is no
  * literal hex anywhere in this file.
  */
-import type { Season, Style } from '@/types';
+import { CONDITION_SHORT, needsReplacing } from '@/lib/condition';
+import type { Condition, Season, Style } from '@/types';
 
 export function CategoryPill({ name, icon }: { name: string; icon?: string | null }) {
   return (
@@ -38,6 +39,26 @@ export function ColorDot({ hex, name }: { hex?: string | null; name?: string | n
         style={hex ? { backgroundColor: hex } : undefined}
       />
       {name ?? hex}
+    </span>
+  );
+}
+
+/**
+ * Module 18 §6: a condition dot on the card, and only when the garment is at 2 or
+ * below. A badge on everything would be wardrobe-wide nagging; a mark that appears
+ * only on the things that are failing is information. Nothing is drawn for an unrated
+ * item — not knowing is not the same as fine.
+ */
+export function ConditionDot({ condition }: { condition: Condition | null }) {
+  if (!needsReplacing({ condition }) || condition === null) return null;
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-danger-50 px-2 py-0.5 text-chip font-medium text-danger-600"
+      title={CONDITION_SHORT[condition]}
+    >
+      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-danger-600" />
+      {CONDITION_SHORT[condition]}
     </span>
   );
 }

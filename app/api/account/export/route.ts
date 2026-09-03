@@ -1,8 +1,13 @@
 /**
  * GET /api/account/export — module 03 §5.
  *
- * A single JSON file: profile, items, outfits, feedback, style profile, plus a map of
- * item id to a 24-hour signed image URL. Generated on demand, never stored.
+ * A single JSON file: profile, items, outfits, feedback, condition history, style
+ * profile, plus a map of item id to a 24-hour signed image URL. Generated on demand,
+ * never stored.
+ *
+ * The condition log is in here because module 18's acceptance list requires it, and for
+ * a better reason than compliance: it is a time series nobody can reconstruct. Omit it
+ * and an export is not a copy of the user's data.
  *
  * This is the cheapest possible answer to "what happens to my photos", and you will
  * be asked.
@@ -12,12 +17,14 @@ import { requireUser, createClient } from '@/lib/supabase/server';
 import { appError } from '@/lib/errors';
 import { EXPORT_URL_TTL_SECONDS, signedUrlsFor } from '@/lib/storage';
 import {
+  toConditionLogEntry,
   toFeedback,
   toItem,
   toOutfit,
   toOutfitItem,
   toProfile,
   toStyleProfile,
+  type ConditionLogRow,
   type FeedbackRow,
   type ItemRow,
   type OutfitItemRow,
@@ -45,7 +52,7 @@ export const GET = handle(async () => {
   const supabase = await createClient();
 
   // RLS scopes every one of these to the caller — no manual user_id filter needed.
-  const [profileRes, itemsRes, outfitsRes, outfitItemsRes, feedbackRes, styleRes] =
+  const [profileRes, itemsRes, outfitsRes, outfitItemsRes, feedbackRes, conditionRes, styleRes] =
     await Promise.all([
       supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', user.id).single(),
       supabase.from('items').select(ITEM_COLUMNS).order('created_at', { ascending: true }),
@@ -55,12 +62,22 @@ export const GET = handle(async () => {
         .from('feedback')
         .select('id, user_id, outfit_id, item_id, kind, worn_on, created_at')
         .order('created_at', { ascending: true }),
+      supabase
+        .from('condition_log')
+        .select('id, item_id, user_id, condition, wear_count, note, created_at')
+        .order('created_at', { ascending: true }),
       supabase.from('style_profiles').select(STYLE_PROFILE_COLUMNS).eq('user_id', user.id).single(),
     ]);
 
-  const failed = [profileRes, itemsRes, outfitsRes, outfitItemsRes, feedbackRes, styleRes].find(
-    (r) => r.error,
-  );
+  const failed = [
+    profileRes,
+    itemsRes,
+    outfitsRes,
+    outfitItemsRes,
+    feedbackRes,
+    conditionRes,
+    styleRes,
+  ].find((r) => r.error);
   if (failed?.error) throw failed.error;
   if (!profileRes.data || !styleRes.data) throw appError('NOT_FOUND');
 
@@ -93,6 +110,9 @@ export const GET = handle(async () => {
       toOutfit(r, byOutfit.get(r.id) ?? []),
     ),
     feedback: ((feedbackRes.data ?? []) as unknown as FeedbackRow[]).map(toFeedback),
+    conditionHistory: ((conditionRes.data ?? []) as unknown as ConditionLogRow[]).map(
+      toConditionLogEntry,
+    ),
     styleProfile: toStyleProfile(styleRes.data as unknown as StyleProfileRow),
     imageUrls,
   };

@@ -9,6 +9,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ITEM_LIST_COLUMNS } from '@/types';
+import { NEEDS_REPLACING_AT } from '@/lib/condition';
 import { toItemListView, type ItemListRow, type ItemListView } from '@/lib/mappers';
 import type { ListQuery } from '@/app/api/items/schemas';
 
@@ -92,6 +93,13 @@ export async function listItems(
   if (params.categoryId) query = query.eq('category_id', params.categoryId);
   if (params.style) query = query.eq('style', params.style);
   if (params.favourite) query = query.eq('favourite', true);
+
+  /**
+   * "Needs replacing" — module 18 §6. `lte` on a nullable column excludes unrated
+   * items on its own, which is the right answer: an unrated garment is not known to be
+   * failing, and guessing that it is would be exactly the inference §1 forbids.
+   */
+  if (params.needsReplacing) query = query.lte('condition', NEEDS_REPLACING_AT);
 
   // An all-season garment is in season in every season.
   if (params.season) {
@@ -178,10 +186,11 @@ export async function facetCounts(supabase: SupabaseClient): Promise<{
   total: number;
   favourites: number;
   archived: number;
+  needsReplacing: number;
 }> {
   const { data, error } = await supabase
     .from('items')
-    .select('category_id, style, favourite, archived')
+    .select('category_id, style, favourite, archived, condition')
     .eq('status', 'ready')
     .is('deleted_at', null);
   if (error) throw error;
@@ -191,6 +200,7 @@ export async function facetCounts(supabase: SupabaseClient): Promise<{
     style: string | null;
     favourite: boolean;
     archived: boolean;
+    condition: number | null;
   }[];
 
   const byCategory: Record<string, number> = {};
@@ -198,6 +208,7 @@ export async function facetCounts(supabase: SupabaseClient): Promise<{
   let total = 0;
   let favourites = 0;
   let archived = 0;
+  let needsReplacing = 0;
 
   for (const row of rows) {
     if (row.archived) {
@@ -206,9 +217,10 @@ export async function facetCounts(supabase: SupabaseClient): Promise<{
     }
     total += 1;
     if (row.favourite) favourites += 1;
+    if (row.condition !== null && row.condition <= NEEDS_REPLACING_AT) needsReplacing += 1;
     if (row.category_id) byCategory[row.category_id] = (byCategory[row.category_id] ?? 0) + 1;
     if (row.style) byStyle[row.style] = (byStyle[row.style] ?? 0) + 1;
   }
 
-  return { byCategory, byStyle, total, favourites, archived };
+  return { byCategory, byStyle, total, favourites, archived, needsReplacing };
 }

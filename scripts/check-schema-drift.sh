@@ -39,7 +39,9 @@ check items id user_id status storage_path thumb_path name notes category_id slo
   brand subtype primary_color color_hex secondary_colors pattern material formality warmth \
   seasons ai_confidence ai_model ai_raw ai_error user_edited user_tags favourite wear_count \
   last_worn_on archived deleted_at price currency purchased_on retailer cpw_target \
-  cost_per_wear initial_wear_count condition
+  cost_per_wear initial_wear_count condition condition_rated_at condition_at_wear   retired_reason retired_at
+check condition_log id item_id user_id condition wear_count note created_at
+check retailer_durability retailer items avg_wears avg_price avg_cost_per_wear   avg_condition avg_wears_to_decline worn_out_count
 check outfits id user_id source style season temp_bucket score rationale saved planned_for
 check outfit_items outfit_id item_id slot
 check profiles id display_name city country timezone plan item_count wardrobe_version \

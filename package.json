@@ -17,7 +17,8 @@
     "check:rls": "bash scripts/check-rls.sh",
     "db:reset": "supabase db reset",
     "check:storage": "bash scripts/check-storage-boundary.sh",
-    "check:schema": "bash scripts/check-schema-drift.sh"
+    "check:schema": "bash scripts/check-schema-drift.sh",
+    "check:tagschema": "bash scripts/check-tag-schema.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

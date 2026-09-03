@@ -11,11 +11,21 @@ import { ItemImage } from '@/components/ItemImage';
 import { CategoryPill, ColorDot, seasonSummary, STYLE_LABELS } from '@/components/primitives';
 import { ItemDetailActions } from '@/components/wardrobe/ItemDetailActions';
 import { HistoryPanel } from '@/components/wardrobe/HistoryPanel';
+import { ConditionPanel } from '@/components/wardrobe/ConditionPanel';
 import { EditItemForm } from '@/components/wardrobe/EditItemForm';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { ITEM_DETAIL_SELECT } from '@/lib/items';
 import { publicUrlsFor } from '@/lib/storage';
-import { toCategory, toItem, toProfile, type CategoryRow, type ItemRow, type ProfileRow } from '@/lib/mappers';
+import {
+  toCategory,
+  toConditionLogEntry,
+  toItem,
+  toProfile,
+  type CategoryRow,
+  type ConditionLogRow,
+  type ItemRow,
+  type ProfileRow,
+} from '@/lib/mappers';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,17 +53,29 @@ export default async function ItemDetailPage({
   if (!data) notFound();
 
   const item = toItem(data as unknown as ItemRow);
-  const [{ data: categoryRows }, { data: profileRow }, urls] = await Promise.all([
-    supabase.from('categories').select(CATEGORY_COLUMNS).order('sort_order'),
-    supabase
-      .from('profiles')
-      .select(
-        'id, display_name, avatar_key, city, country, timezone, plan, plan_renews_at, item_count, wardrobe_version, currency, cpw_target, onboarding, created_at',
-      )
-      .eq('id', user.id)
-      .single(),
-    publicUrlsFor([item.storagePath, item.thumbPath]),
-  ]);
+  const [{ data: categoryRows }, { data: profileRow }, { data: conditionRows }, urls] =
+    await Promise.all([
+      supabase.from('categories').select(CATEGORY_COLUMNS).order('sort_order'),
+      supabase
+        .from('profiles')
+        .select(
+          'id, display_name, avatar_key, city, country, timezone, plan, plan_renews_at, item_count, wardrobe_version, currency, cpw_target, onboarding, created_at',
+        )
+        .eq('id', user.id)
+        .single(),
+      // Newest first: the current state is what you look at, the series is what you
+      // scroll. Rows are append-only (module 18 §2), so this can only ever grow.
+      supabase
+        .from('condition_log')
+        .select('id, item_id, user_id, condition, wear_count, note, created_at')
+        .eq('item_id', id)
+        .order('created_at', { ascending: false }),
+      publicUrlsFor([item.storagePath, item.thumbPath]),
+    ]);
+
+  const conditionHistory = ((conditionRows ?? []) as unknown as ConditionLogRow[]).map(
+    toConditionLogEntry,
+  );
 
   const profile = profileRow ? toProfile(profileRow as unknown as ProfileRow) : null;
 
@@ -145,8 +167,9 @@ export default async function ItemDetailPage({
           </dl>
 
           {profile && (
-            <div className="mt-6">
+            <div className="mt-6 space-y-6">
               <HistoryPanel item={item} profile={profile} />
+              <ConditionPanel item={item} history={conditionHistory} />
             </div>
           )}
 

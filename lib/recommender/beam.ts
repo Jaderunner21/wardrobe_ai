@@ -9,6 +9,7 @@
  */
 import type { Item, Recommendation, Slot } from '@/types';
 import { TARGET_WARMTH_SUM } from '@/types';
+import { conditionFactor } from '@/lib/condition';
 import { meanPairScore } from '@/lib/recommender/score';
 import type { EngineContext } from '@/lib/recommender/context';
 
@@ -78,9 +79,15 @@ export function assemble(candidates: Item[], ctx: EngineContext): Recommendation
   }));
 }
 
+/**
+ * Module 18 §6: a garment in poor condition is DEPRIORITISED, not excluded. Whether to
+ * wear a faded shirt is the user's call; all this does is stop one outranking something
+ * in good shape. The factor multiplies the outfit's score rather than filtering the
+ * pool, so a wardrobe where everything is worn still gets recommendations.
+ */
 const extend = (p: Partial, item: Item, ctx: EngineContext): Partial => {
   const items = [...p.items, item];
-  return { items, score: meanPairScore(items, ctx) };
+  return { items, score: meanPairScore(items, ctx) * conditionFactor(items) };
 };
 
 const topN = (partials: Partial[], n: number): Partial[] =>

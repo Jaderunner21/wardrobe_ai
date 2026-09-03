@@ -60,7 +60,14 @@ export default async function WardrobePage({ searchParams }: { searchParams: Sea
   const urlsByPath = await publicUrlsFor(page.items.map((i) => i.thumbPath));
 
   const shown = query.archived ? counts.archived : counts.total;
-  const filtered = Boolean(query.q || query.categoryId || query.style || query.season || query.favourite);
+  const filtered = Boolean(
+    query.q ||
+      query.categoryId ||
+      query.style ||
+      query.season ||
+      query.favourite ||
+      ('needsReplacing' in query && query.needsReplacing),
+  );
 
   // The cursor belongs to the current filter state, so carry that state with it.
   const carried = new URLSearchParams();
@@ -118,11 +125,14 @@ export default async function WardrobePage({ searchParams }: { searchParams: Sea
             <StatRow label="In rotation" count={counts.total} />
             <StatRow label="Favourites" count={counts.favourites} />
             <StatRow label="Archived" count={counts.archived} />
+            {counts.needsReplacing > 0 && (
+              <StatRow label="Needs replacing" count={counts.needsReplacing} />
+            )}
           </section>
         </aside>
 
         <div>
-          <FilterBar total={counts.total} />
+          <FilterBar total={counts.total} needsReplacingCount={counts.needsReplacing} />
 
           {page.items.length === 0 ? (
             filtered ? (

@@ -98,6 +98,12 @@ jobs:
       - name: Storage boundary
         run: bash scripts/check-storage-boundary.sh
 
+      # module 18 §1 / module 17 §3 — condition and purchase history are user-entered.
+      # A model guessing at either silently corrupts the retailer durability signal,
+      # and nothing else in this pipeline would notice.
+      - name: The tagger fills no user-entered field
+        run: bash scripts/check-tag-schema.sh
+
       - name: Build
         run: pnpm build
 

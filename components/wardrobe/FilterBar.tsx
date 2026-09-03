@@ -20,7 +20,13 @@ const SORT_LABELS: Record<(typeof SORTS)[number], string> = {
   'cost-per-wear': 'Cost per wear',
 };
 
-export function FilterBar({ total }: { total: number }) {
+export function FilterBar({
+  total,
+  needsReplacingCount,
+}: {
+  total: number;
+  needsReplacingCount: number;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -29,6 +35,7 @@ export function FilterBar({ total }: { total: number }) {
   const [q, setQ] = useState(params.get('q') ?? '');
   const favourite = params.get('favourite') === 'true';
   const archived = params.get('archived') === 'true';
+  const needsReplacing = params.get('needsReplacing') === 'true';
   const sort = params.get('sort') ?? 'recent';
 
   const push = (mutate: (next: URLSearchParams) => void) => {
@@ -89,6 +96,29 @@ export function FilterBar({ total }: { total: number }) {
       >
         Archived
       </button>
+
+      {/*
+        Module 18 §6. Offered only when there is something to find: a toggle that always
+        returns nothing teaches people the wardrobe is broken, and the count is passed
+        in from the server, which already has it.
+      */}
+      {needsReplacingCount > 0 && (
+        <button
+          type="button"
+          aria-pressed={needsReplacing}
+          onClick={() =>
+            push((next) =>
+              needsReplacing ? next.delete('needsReplacing') : next.set('needsReplacing', 'true'),
+            )
+          }
+          className={[
+            'rounded-[var(--radius)] px-3 py-2 text-meta font-medium transition-colors',
+            needsReplacing ? 'bg-danger-50 text-danger-600' : 'text-text-dim hover:bg-brand-50',
+          ].join(' ')}
+        >
+          Needs replacing ({needsReplacingCount})
+        </button>
+      )}
 
       <label htmlFor="wardrobe-sort" className="sr-only">
         Sort by

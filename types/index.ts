@@ -200,6 +200,10 @@ export const ITEM_LIST_COLUMNS = [
   'id', 'status', 'thumb_path', 'name', 'category_id', 'slot', 'style', 'brand',
   'subtype', 'primary_color', 'color_hex', 'formality', 'warmth', 'seasons',
   'user_tags', 'favourite', 'archived', 'wear_count',
+  // Module 18 §6 puts a condition dot on the card and a "needs replacing" filter in
+  // the bar, and §3's rating prompt needs to know the wear count at the last rating.
+  // Two small integers; the egress that matters is `ai_raw` and it stays out.
+  'condition', 'condition_at_wear',
 ] as const;
 
 export interface StyleProfile {
