@@ -27,7 +27,7 @@ export const POST = handle(async (request: Request) => {
   if (error) throw error;
 
   const discarded = data?.length ?? 0;
-  await track('item.discarded', { count: discarded });
+  await track('item_discarded', { count: discarded });
 
   return ok({ discarded });
 });

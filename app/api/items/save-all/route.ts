@@ -44,7 +44,7 @@ export const POST = handle(async (request: Request) => {
   if (error) throw error;
 
   const items = ((data ?? []) as unknown as ItemRow[]).map(toItem);
-  await track('item.saved', { count: items.length });
+  await track('item_saved', { count: items.length });
 
   return ok({ saved: items.length, items });
 });

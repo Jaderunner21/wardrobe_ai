@@ -10,6 +10,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { trackSignupOnce } from '@/lib/events';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -26,13 +27,22 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, origin));
+    if (!error) {
+      // Module 14 §1's funnel starts here. Awaited rather than fired and forgotten:
+      // this is one row on a rare path, and a signup missing from the denominator is
+      // the one loss that makes every other number in the funnel wrong.
+      await trackSignupOnce();
+      return NextResponse.redirect(new URL(next, origin));
+    }
     return failed(origin, error.message);
   }
 
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (!error) return NextResponse.redirect(new URL(next, origin));
+    if (!error) {
+      await trackSignupOnce();
+      return NextResponse.redirect(new URL(next, origin));
+    }
     return failed(origin, error.message);
   }
 

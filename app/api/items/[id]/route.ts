@@ -88,7 +88,7 @@ export const PATCH = handle(async (request: Request, context: Context) => {
   if (error) throw error;
 
   await trackCorrections(id, corrections);
-  if (patch.archived === true && !current.archived) await track('item.archived', { itemId: id });
+  if (patch.archived === true && !current.archived) await track('item_archived', { itemId: id });
 
   return ok({ item: toItem(data as unknown as ItemRow) });
 });
@@ -132,7 +132,7 @@ export const DELETE = handle(async (request: Request, context: Context) => {
 
     // The reason is deliberately NOT in the event: module 18's acceptance list says no
     // condition or retailer data in analytics, and `worn_out` is durability data.
-    await track('item.deleted', { itemId: id, permanent: false });
+    await track('item_deleted', { itemId: id, permanent: false });
     return new Response(null, { status: 204 });
   }
 
@@ -150,6 +150,6 @@ export const DELETE = handle(async (request: Request, context: Context) => {
   const { error } = await supabase.from('items').delete().eq('id', id);
   if (error) throw error;
 
-  await track('item.deleted', { itemId: id, permanent: true });
+  await track('item_deleted', { itemId: id, permanent: true });
   return new Response(null, { status: 204 });
 });

@@ -28,6 +28,7 @@ import { assertBudget, localDay, recordUsage } from '@/lib/budget';
 import { rerankOutfits } from '@/lib/gemini';
 import { toItem, toStyleProfile, type ItemRow, type StyleProfileRow } from '@/lib/mappers';
 import { toFlags } from '@/lib/flags';
+import { track } from '@/lib/events';
 import { STYLES } from '@/app/api/items/schemas';
 import type { Item, Recommendation, Style, WeatherContext } from '@/types';
 
@@ -304,6 +305,18 @@ export const GET = handle(async (request: Request) => {
       { onConflict: 'user_id,cache_key' },
     );
   if (cacheError) console.error('[recommendations] cache write failed', cacheError);
+
+  /**
+   * Module 14 §1's recommendation-quality signal needs a denominator, and module 19
+   * §7's comparison needs to know which engine produced what. `source` is the whole
+   * point of the event: thumbs-up rate is only interesting per arm.
+   */
+  await track('recommendations_viewed', {
+    style,
+    source,
+    count: result.recommendations.length,
+    cached: false,
+  });
 
   return ok({
     recommendations: result.recommendations,

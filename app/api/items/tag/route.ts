@@ -26,6 +26,7 @@ import { signedUrl } from '@/lib/storage';
 import { ITEM_DETAIL_SELECT } from '@/lib/items';
 import { toItem, type ItemRow } from '@/lib/mappers';
 import type { Slot, TagResult } from '@/types';
+import { track } from '@/lib/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,6 +118,13 @@ export const POST = handle(async (request: Request) => {
 
     // 8
     await recordUsage(user.id, 'tag', result.inTokens, result.outTokens);
+
+    /**
+     * The denominator for module 14 §1's correction rate. Confidence rides along
+     * because "which confidence band gets corrected most" is the follow-up question the
+     * moment the headline number is not what you hoped.
+     */
+    await track('item_tagged', { itemId, confidence: tag.confidence, model: MODEL });
 
     return ok({ item: toItem(updated as unknown as ItemRow) });
   } catch (e) {

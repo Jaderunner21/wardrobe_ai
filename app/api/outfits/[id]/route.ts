@@ -10,6 +10,7 @@ import { handle, ok, parseBody } from '@/lib/api';
 import { appError } from '@/lib/errors';
 import { requireUser, createClient } from '@/lib/supabase/server';
 import { OUTFIT_SELECT, toOutfitWithItems, type OutfitEmbeddedRow } from '@/lib/outfits';
+import { track } from '@/lib/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,15 @@ export const PATCH = handle(async (request: Request, context: Context) => {
   if (error) throw error;
   if (!data) throw appError('NOT_FOUND');
 
-  return ok({ outfit: toOutfitWithItems(data as unknown as OutfitEmbeddedRow) });
+  const outfit = toOutfitWithItems(data as unknown as OutfitEmbeddedRow);
+
+  // Planning is a retention signal, not a preference one — module 09 §4 calls the
+  // planner one of the two reasons to open the app on a day you are not adding clothes.
+  if (patch.plannedFor) {
+    await track('outfit_planned', { outfitId: id, source: outfit.source });
+  }
+
+  return ok({ outfit });
 });
 
 export const DELETE = handle(async (_request: Request, context: Context) => {

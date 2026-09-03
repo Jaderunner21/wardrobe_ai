@@ -16,6 +16,7 @@ import {
   type OutfitEmbeddedRow,
 } from '@/lib/outfits';
 import { SEASONS, SLOTS, STYLES } from '@/app/api/items/schemas';
+import { track } from '@/lib/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -130,5 +131,13 @@ export const POST = handle(async (request: Request) => {
     .single();
   if (readError) throw readError;
 
-  return ok({ outfit: toOutfitWithItems(created as unknown as OutfitEmbeddedRow) }, { status: 201 });
+  /**
+   * Module 19 §7 compares the two engines on three numbers, and this is one of them.
+   * `source` is what makes it answerable: a saved-outfit rate with no engine attached
+   * measures nothing about the swap.
+   */
+  const saved = toOutfitWithItems(created as unknown as OutfitEmbeddedRow);
+  await track('outfit_saved', { outfitId: saved.id, source: body.source });
+
+  return ok({ outfit: saved }, { status: 201 });
 });

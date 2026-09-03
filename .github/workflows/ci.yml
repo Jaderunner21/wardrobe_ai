@@ -105,6 +105,11 @@ jobs:
       - name: Storage boundary
         run: bash scripts/check-storage-boundary.sh
 
+      # module 14 acceptance — every event name has exactly one emitter. A name with
+      # none reads as "nobody did that" rather than "nobody instrumented that".
+      - name: Event names have emitters
+        run: bash scripts/check-events.sh
+
       # module 18 §1 / module 17 §3 — condition and purchase history are user-entered.
       # A model guessing at either silently corrupts the retailer durability signal,
       # and nothing else in this pipeline would notice.

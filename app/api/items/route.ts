@@ -122,7 +122,7 @@ export const POST = handle(async (request: Request) => {
   // codes the client switches on.
   if (error) throw error;
 
-  await track('item.created', { itemId: body.itemId, manual: described });
+  await track('item_uploaded', { itemId: body.itemId, manual: described });
 
   return ok({ item: toItem(data as unknown as ItemRow) }, { status: 201 });
 });

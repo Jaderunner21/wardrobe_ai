@@ -19,9 +19,11 @@
     "check:storage": "bash scripts/check-storage-boundary.sh",
     "check:schema": "bash scripts/check-schema-drift.sh",
     "check:tagschema": "bash scripts/check-tag-schema.sh",
-    "check:downgrade": "bash scripts/check-downgrade.sh"
+    "check:downgrade": "bash scripts/check-downgrade.sh",
+    "check:events": "bash scripts/check-events.sh"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.73.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
     "next": "^15.5.4",

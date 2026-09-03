@@ -14,7 +14,8 @@ import { appError } from '@/lib/errors';
 import { requireUser, createClient } from '@/lib/supabase/server';
 import { applyFeedback, colorPairsOf } from '@/lib/learning';
 import { toItem, toStyleProfile, type ItemRow, type StyleProfileRow } from '@/lib/mappers';
-import type { FeedbackKind, Item } from '@/types';
+import { track } from '@/lib/events';
+import type { FeedbackKind, Item, RecommendationSource } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,8 +79,44 @@ export const POST = handle(async (request: Request) => {
 
   await updateStyleProfile(supabase, user.id, items, body.kind);
 
+  /**
+   * Module 14 §1's recommendation-quality signal, and two of module 19 §7's three
+   * numbers. `kind` carries the thumbs-up/down; `source` says which engine produced the
+   * outfit, without which the comparison cannot be made at all.
+   *
+   * No colours, no item names — §7. Which garments were thumbed down is already in
+   * `feedback`, under RLS, where it belongs.
+   */
+  const source = body.outfitId ? await outfitSource(supabase, body.outfitId) : null;
+
+  await track('feedback_given', {
+    kind: body.kind,
+    subject: body.outfitId ? 'outfit' : 'item',
+    source,
+  });
+
+  // A wear against a whole outfit is the strongest signal there is: not "I like this"
+  // but "I wore it". Counted separately for that reason.
+  if (body.kind === 'worn' && body.outfitId) {
+    await track('outfit_worn', { outfitId: body.outfitId, source });
+  }
+
   return ok({ ok: true });
 });
+
+/** Which engine produced this outfit — module 19 §7's comparison needs it per event. */
+async function outfitSource(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  outfitId: string,
+): Promise<RecommendationSource | null> {
+  const { data } = await supabase
+    .from('outfits')
+    .select('source')
+    .eq('id', outfitId)
+    .maybeSingle();
+
+  return (data?.source as RecommendationSource | undefined) ?? null;
+}
 
 /** The items the feedback is about: a whole outfit, or a single garment. */
 async function subjectItems(

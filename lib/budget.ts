@@ -14,6 +14,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { appError } from '@/lib/errors';
 import { AI_LIMITS, AI_LIMITS_TEST, type AiCallKind, type AiUsage, type Plan } from '@/types';
+import { track } from '@/lib/events';
 
 /**
  * The compile-time fallback. `plan_features` (0010) is the real source of truth, so an
@@ -150,6 +151,14 @@ export async function assertBudget(userId: string, kind: AiCallKind): Promise<vo
   if (error) throw error;
 
   if (!granted) {
+    /**
+     * Module 14: a cap being hit is a product fact, not just an error. If this fires
+     * often the limit is wrong; if it never fires the limit is not the thing to tune.
+     * Emitted before the throw, and awaited, because a refusal that is not recorded is
+     * indistinguishable from one that never happened.
+     */
+    await track('ai_budget_hit', { kind, limit });
+
     throw appError(
       'AI_BUDGET_EXCEEDED',
       `You've used today's ${limit} ${LABEL[kind]}. They reset at ${resetLabel(timezone)}.`,

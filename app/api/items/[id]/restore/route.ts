@@ -45,7 +45,7 @@ export const POST = handle(async (_request: Request, context: Context) => {
       .is('deleted_at', null);
     if (error) throw error;
     if ((count ?? 0) >= FREE_ITEM_CAP) {
-      await track('quota.blocked', { at: 'restore', itemId: id });
+      await track('quota_hit', { at: 'restore', itemId: id });
       throw appError('ITEM_QUOTA_EXCEEDED');
     }
   }
@@ -58,7 +58,7 @@ export const POST = handle(async (_request: Request, context: Context) => {
     .single();
   if (error) throw error;
 
-  await track('item.restored', { itemId: id });
+  await track('item_restored', { itemId: id });
 
   return ok({ item: toItem(data as unknown as ItemRow) });
 });

@@ -54,6 +54,7 @@ check plan_features plan tag_limit chat_limit rerank_limit item_cap
 check ai_usage user_id day tag_calls chat_calls llm_calls in_tokens out_tokens
 check weather_cache city_key day payload
 check processed_webhooks event_id event_type received_at
+check events id user_id name props created_at
 
 if [ "$status" -ne 0 ]; then
   echo
