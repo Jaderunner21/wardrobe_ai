@@ -18,7 +18,8 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { listItems } from '@/lib/items';
 import { styleInsights } from '@/lib/insights';
 import { publicUrlsFor } from '@/lib/storage';
-import { toCategory, type CategoryRow } from '@/lib/mappers';
+import { toCategory, toProfile, type CategoryRow, type ProfileRow } from '@/lib/mappers';
+import { formatMoney } from '@/lib/cpw';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,13 @@ export default async function DashboardPage() {
   const supabase = await createClient();
 
   const [{ data: profileRow }, recent, insights, { data: categoryRows }] = await Promise.all([
-    supabase.from('profiles').select('display_name, item_count').eq('id', user.id).single(),
+    supabase
+      .from('profiles')
+      .select(
+        'id, display_name, avatar_key, city, country, timezone, plan, plan_renews_at, item_count, wardrobe_version, currency, cpw_target, onboarding, created_at',
+      )
+      .eq('id', user.id)
+      .single(),
     listItems(supabase, { sort: 'recent', limit: RECENT_LIMIT }),
     styleInsights(supabase),
     supabase.from('categories').select(CATEGORY_COLUMNS).order('sort_order'),
@@ -44,15 +51,16 @@ export default async function DashboardPage() {
   const categories = ((categoryRows ?? []) as unknown as CategoryRow[]).map(toCategory);
   const mostWorn = categories.find((c) => c.id === insights.mostWornCategoryId);
 
-  const firstName = profileRow?.display_name?.split(' ')[0];
+  const profile = profileRow ? toProfile(profileRow as unknown as ProfileRow) : null;
+  const firstName = profile?.displayName?.split(' ')[0];
 
   return (
     <>
       <PageHeader
         title={firstName ? `Hello, ${firstName}` : 'Your wardrobe'}
         subtitle={
-          profileRow?.item_count
-            ? `${profileRow.item_count} item${profileRow.item_count === 1 ? '' : 's'} in rotation`
+          profile?.itemCount
+            ? `${profile.itemCount} item${profile.itemCount === 1 ? '' : 's'} in rotation`
             : 'Nothing in it yet.'
         }
         action={
@@ -135,11 +143,25 @@ export default async function DashboardPage() {
           />
 
           <Tile
+            label="Best Value"
+            value={
+              insights.bestValue
+                ? formatMoney(insights.bestValue.costPerWear, profile?.currency)
+                : 'Not yet'
+            }
+            note={
+              insights.bestValue
+                ? `${insights.bestValue.name ?? 'An item'} — per wear`
+                : 'Add a price to an item you wear often'
+            }
+          />
+
+          <Tile
             label="Never Worn"
             value={String(insights.neverWorn)}
             note={
-              insights.neverWorn > 0
-                ? 'Worth a look before buying anything new'
+              insights.staleCount > 0
+                ? `${insights.staleCount} not worn in six months`
                 : 'Everything has been worn at least once'
             }
           />

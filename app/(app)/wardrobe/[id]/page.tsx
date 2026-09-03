@@ -10,10 +10,11 @@ import { notFound, redirect } from 'next/navigation';
 import { ItemImage } from '@/components/ItemImage';
 import { CategoryPill, ColorDot, seasonSummary, STYLE_LABELS } from '@/components/primitives';
 import { ItemDetailActions } from '@/components/wardrobe/ItemDetailActions';
+import { HistoryPanel } from '@/components/wardrobe/HistoryPanel';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { ITEM_DETAIL_SELECT } from '@/lib/items';
 import { publicUrlsFor } from '@/lib/storage';
-import { toCategory, toItem, type CategoryRow, type ItemRow } from '@/lib/mappers';
+import { toCategory, toItem, toProfile, type CategoryRow, type ItemRow, type ProfileRow } from '@/lib/mappers';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,17 +42,23 @@ export default async function ItemDetailPage({
   if (!data) notFound();
 
   const item = toItem(data as unknown as ItemRow);
-  const [{ data: categoryRows }, urls] = await Promise.all([
+  const [{ data: categoryRows }, { data: profileRow }, urls] = await Promise.all([
     supabase.from('categories').select(CATEGORY_COLUMNS).order('sort_order'),
+    supabase
+      .from('profiles')
+      .select(
+        'id, display_name, avatar_key, city, country, timezone, plan, plan_renews_at, item_count, wardrobe_version, currency, cpw_target, onboarding, created_at',
+      )
+      .eq('id', user.id)
+      .single(),
     publicUrlsFor([item.storagePath, item.thumbPath]),
   ]);
+
+  const profile = profileRow ? toProfile(profileRow as unknown as ProfileRow) : null;
 
   const categories = ((categoryRows ?? []) as unknown as CategoryRow[]).map(toCategory);
   const category = categories.find((c) => c.id === item.categoryId);
   const label = item.name ?? item.subtype ?? 'Untitled item';
-
-  const cpw =
-    item.price != null ? item.price / Math.max(item.wearCount, 1) : null;
 
   return (
     <>
@@ -129,27 +136,10 @@ export default async function ItemDetailPage({
             />
           </dl>
 
-          {(item.price != null || item.retailer || item.purchasedOn) && (
-            <section className="mt-6 rounded-[var(--radius-lg)] bg-brand-50 p-4">
-              <h2 className="text-meta font-semibold uppercase tracking-wide text-text-mute">
-                Purchase
-              </h2>
-              <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
-                <Row
-                  label="Price"
-                  value={item.price != null ? `${item.currency ?? ''} ${item.price}`.trim() : '—'}
-                />
-                <Row label="Retailer" value={item.retailer ?? '—'} />
-                <Row
-                  label="Cost per wear"
-                  value={
-                    cpw != null
-                      ? `${item.currency ?? ''} ${cpw.toFixed(2)}`.trim()
-                      : 'Add a price to see this'
-                  }
-                />
-              </dl>
-            </section>
+          {profile && (
+            <div className="mt-6">
+              <HistoryPanel item={item} profile={profile} />
+            </div>
           )}
 
           {item.userTags.length > 0 && (
