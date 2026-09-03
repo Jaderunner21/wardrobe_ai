@@ -33,6 +33,7 @@ import type {
   Warmth,
   WeatherContext,
 } from '@/types';
+import { toPreferences } from '@/lib/format';
 
 // ───────────────────────────────────────────────────────────── row shapes
 
@@ -50,6 +51,7 @@ export interface ProfileRow {
   currency: string;
   cpw_target: number;
   onboarding: Record<string, unknown>;
+  preferences: Record<string, unknown>;
   created_at: string;
 }
 
@@ -249,6 +251,9 @@ export const toProfile = (r: ProfileRow): Profile => ({
   currency: r.currency,
   cpwTarget: Number(r.cpw_target),
   onboarding: r.onboarding ?? {},
+  // Parsed rather than trusted: this is jsonb, so the database will hand back whatever
+  // was last written to it, including from a version of the app that is not this one.
+  preferences: toPreferences(r.preferences),
   createdAt: r.created_at,
 });
 

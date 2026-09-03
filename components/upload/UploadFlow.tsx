@@ -27,6 +27,7 @@ import {
   emptyDraft,
   type DraftFields,
 } from '@/components/upload/ItemDraftForm';
+import { QuotaReached } from '@/components/upload/QuotaReached';
 import type { ApiError, Category, Item } from '@/types';
 
 type Phase = 'choose' | 'uploading' | 'review' | 'saved';
@@ -54,6 +55,12 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
+  /**
+   * Module 05 §7: the wardrobe filling up is a conversion moment, not an error. It gets
+   * a panel at the top of the flow rather than a red line under a form, and the uploaded
+   * photos below it stay exactly where they were.
+   */
+  const [quotaHit, setQuotaHit] = useState(false);
 
   /** Cards the user has typed into are never overwritten by a late tag result. */
   const edited = useRef<Set<string>>(new Set());
@@ -153,6 +160,7 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
 
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as ApiError | null;
+          if (body?.error.code === 'ITEM_QUOTA_EXCEEDED') setQuotaHit(true);
           setTasks((current) =>
             current.map((t) =>
               t.key === task.key
@@ -310,6 +318,12 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
             className="sr-only"
             onChange={(e) => start(Array.from(e.target.files ?? []))}
           />
+        </div>
+      )}
+
+      {quotaHit && (
+        <div className="mb-6">
+          <QuotaReached onDismiss={() => setQuotaHit(false)} />
         </div>
       )}
 

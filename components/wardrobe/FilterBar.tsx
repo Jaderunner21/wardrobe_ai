@@ -23,9 +23,11 @@ const SORT_LABELS: Record<(typeof SORTS)[number], string> = {
 export function FilterBar({
   total,
   needsReplacingCount,
+  view,
 }: {
   total: number;
   needsReplacingCount: number;
+  view: 'grid' | 'list';
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -119,6 +121,32 @@ export function FilterBar({
           Needs replacing ({needsReplacingCount})
         </button>
       )}
+
+      {/*
+        Grid / list — module 16 §4's filter bar. In the URL like every other filter, so
+        the view survives a reload and a shared link, and Settings → Appearance holds
+        the default for a user who always wants one of them.
+      */}
+      <div
+        role="group"
+        aria-label="Layout"
+        className="flex shrink-0 rounded-[var(--radius)] bg-bg p-0.5"
+      >
+        {(['grid', 'list'] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={view === option}
+            onClick={() => push((next) => next.set('view', option))}
+            className={[
+              'rounded-[var(--radius-sm)] px-3 py-1.5 text-meta font-medium capitalize transition-colors',
+              view === option ? 'bg-surface text-text shadow-[var(--shadow-card)]' : 'text-text-mute',
+            ].join(' ')}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
 
       <label htmlFor="wardrobe-sort" className="sr-only">
         Sort by

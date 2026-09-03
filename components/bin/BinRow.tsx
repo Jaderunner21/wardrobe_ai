@@ -7,9 +7,18 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { ItemImage } from '@/components/ItemImage';
-import type { ApiError, Item } from '@/types';
+import type { ApiError, DateFormat, Item } from '@/types';
+import { DEFAULT_DATE_FORMAT, formatDate } from '@/lib/format';
 
-export function BinRow({ item, imageUrl }: { item: Item; imageUrl?: string }) {
+export function BinRow({
+  item,
+  imageUrl,
+  dateFormat = DEFAULT_DATE_FORMAT,
+}: {
+  item: Item;
+  imageUrl?: string;
+  dateFormat?: DateFormat;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -46,7 +55,7 @@ export function BinRow({ item, imageUrl }: { item: Item; imageUrl?: string }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-card font-medium">{label}</p>
         <p className="text-meta text-text-mute">
-          Deleted {item.deletedAt ? new Date(item.deletedAt).toLocaleDateString() : '—'}
+          Deleted {formatDate(item.deletedAt, dateFormat)}
         </p>
         {error && (
           <p role="alert" className="text-meta text-danger-600">

@@ -70,8 +70,31 @@ export interface Profile {
   currency: string;                 // ISO 4217, default 'INR'
   cpwTarget: number;                // default cost-per-wear goal, default 100
   onboarding: Record<string, unknown>;
+  /** Module 16 §4's Appearance tab. Server-read, so not localStorage — see 0012. */
+  preferences: Preferences;
   createdAt: string;
 }
+
+/**
+ * How the app presents things, as opposed to what it knows. Every field is optional:
+ * an absent preference means "whatever the default is", which is what a fresh profile
+ * has and what an older row that predates the column has too.
+ */
+export interface Preferences {
+  dateFormat?: DateFormat;
+  defaultSort?: ItemSort;
+  /** Wardrobe grid or list. A view choice, so it lives with the other view choices. */
+  wardrobeView?: 'grid' | 'list';
+}
+
+/**
+ * Explicit formats rather than a locale string. "8/28/2025" and "28/8/2025" are the
+ * same date and different numbers, and module 16 §6.6 caught the prototype showing a
+ * member-since date a year out — an ambiguous format is how that goes unnoticed.
+ */
+export type DateFormat = 'dmy' | 'mdy' | 'iso' | 'long';
+
+export type ItemSort = 'recent' | 'least-worn' | 'recently-worn' | 'cost-per-wear';
 
 /** Display + filter axis. Nine seeded defaults; users may add their own. */
 export interface Category {

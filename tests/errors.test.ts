@@ -111,3 +111,35 @@ describe('status codes', () => {
     }
   });
 });
+
+/**
+ * Module 05 §7 asks for the quota path to be covered by a test rather than exercised
+ * in the wild: every plan currently has an unlimited item cap, so the conversion screen
+ * cannot be reached by using the app. What the test pins is the link in the chain that
+ * would break silently — the trigger raises a message, and something has to turn that
+ * into the code the upload flow watches for. If that mapping regresses, the quota
+ * renders as a generic error toast, which is precisely what §7 says it must never be.
+ */
+describe('the item quota is a designed screen, not an error toast', () => {
+  it('maps the trigger raise to ITEM_QUOTA_EXCEEDED', () => {
+    // The message the quota trigger actually raises, wrapped as supabase-js delivers it.
+    const err = fromPostgres({
+      code: 'P0001',
+      message: 'ITEM_QUOTA_EXCEEDED',
+    });
+
+    expect(err.code).toBe('ITEM_QUOTA_EXCEEDED');
+    // 402, not 500: the request was well formed and the answer is "upgrade".
+    expect(err.status).toBeLessThan(500);
+  });
+
+  it('recognises it inside a longer plpgsql message', () => {
+    expect(
+      fromPostgres({ code: 'P0001', message: 'ITEM_QUOTA_EXCEEDED: cap is 25' }).code,
+    ).toBe('ITEM_QUOTA_EXCEEDED');
+  });
+
+  it('does not mistake any other raise for it', () => {
+    expect(fromPostgres({ code: 'P0001', message: 'NOT_FOUND' }).code).toBe('NOT_FOUND');
+  });
+});

@@ -16,6 +16,7 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { BIN_PURGE_DAYS, ITEM_DETAIL_SELECT } from '@/lib/items';
 import { publicUrlsFor } from '@/lib/storage';
 import { toItem, type ItemRow } from '@/lib/mappers';
+import { userDateFormat } from '@/lib/preferences';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,10 @@ export default async function BinPage() {
     .order('deleted_at', { ascending: false });
 
   const items = ((data ?? []) as unknown as ItemRow[]).map(toItem);
-  const urlsByPath = await publicUrlsFor(items.map((i) => i.thumbPath));
+  const [urlsByPath, dateFormat] = await Promise.all([
+    publicUrlsFor(items.map((i) => i.thumbPath)),
+    userDateFormat(),
+  ]);
 
   return (
     <>
@@ -57,7 +61,12 @@ export default async function BinPage() {
       ) : (
         <ul className="divide-y divide-border rounded-[var(--radius-lg)] border border-border bg-surface px-4">
           {items.map((item) => (
-            <BinRow key={item.id} item={item} imageUrl={urlsByPath[item.thumbPath]} />
+            <BinRow
+              key={item.id}
+              item={item}
+              imageUrl={urlsByPath[item.thumbPath]}
+              dateFormat={dateFormat}
+            />
           ))}
         </ul>
       )}

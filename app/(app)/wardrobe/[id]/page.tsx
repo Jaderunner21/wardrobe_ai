@@ -16,6 +16,7 @@ import { EditItemForm } from '@/components/wardrobe/EditItemForm';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { ITEM_DETAIL_SELECT } from '@/lib/items';
 import { publicUrlsFor } from '@/lib/storage';
+import { dateFormatOf, formatDate } from '@/lib/format';
 import {
   toCategory,
   toConditionLogEntry,
@@ -81,6 +82,7 @@ export default async function ItemDetailPage({
 
   const categories = ((categoryRows ?? []) as unknown as CategoryRow[]).map(toCategory);
   const category = categories.find((c) => c.id === item.categoryId);
+  const dateFormat = dateFormatOf(profile?.preferences);
   const label = item.name ?? item.subtype ?? 'Untitled item';
 
   return (
@@ -159,7 +161,7 @@ export default async function ItemDetailPage({
                   ? 'Never'
                   : `${item.wearCount} time${item.wearCount === 1 ? '' : 's'}${
                       item.lastWornOn
-                        ? ` · last ${new Date(item.lastWornOn).toLocaleDateString()}`
+                        ? ` · last ${formatDate(item.lastWornOn, dateFormat)}`
                         : ''
                     }`
               }
@@ -169,7 +171,7 @@ export default async function ItemDetailPage({
           {profile && (
             <div className="mt-6 space-y-6">
               <HistoryPanel item={item} profile={profile} />
-              <ConditionPanel item={item} history={conditionHistory} />
+              <ConditionPanel item={item} history={conditionHistory} dateFormat={dateFormat} />
             </div>
           )}
 
@@ -189,7 +191,7 @@ export default async function ItemDetailPage({
           {item.notes && <p className="mt-6 text-body text-text-dim">{item.notes}</p>}
 
           <p className="mt-6 text-meta text-text-mute">
-            Added {new Date(item.createdAt).toLocaleDateString()}
+            Added {formatDate(item.createdAt, dateFormat)}
             {item.aiModel && item.aiConfidence != null && (
               <> · tagged by {item.aiModel} at {Math.round(item.aiConfidence * 100)}% confidence</>
             )}

@@ -22,14 +22,17 @@ import {
   needsConditionRating,
   wearsSinceRating,
 } from '@/lib/condition';
-import type { Condition, ConditionLogEntry, Item } from '@/types';
+import { DEFAULT_DATE_FORMAT, formatDate } from '@/lib/format';
+import type { Condition, ConditionLogEntry, DateFormat, Item } from '@/types';
 
 export function ConditionPanel({
   item,
   history,
+  dateFormat = DEFAULT_DATE_FORMAT,
 }: {
   item: Pick<Item, 'id' | 'condition' | 'conditionRatedAt' | 'conditionAtWear' | 'wearCount'>;
   history: ConditionLogEntry[];
+  dateFormat?: DateFormat;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -106,7 +109,7 @@ export function ConditionPanel({
                 {entry.note && <span className="text-text-dim"> — {entry.note}</span>}
               </span>
               <span className="shrink-0 text-text-mute">
-                {new Date(entry.createdAt).toLocaleDateString()}
+                {formatDate(entry.createdAt, dateFormat)}
               </span>
             </li>
           ))}

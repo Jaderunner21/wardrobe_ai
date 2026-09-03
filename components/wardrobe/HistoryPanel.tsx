@@ -7,6 +7,7 @@
  */
 import { costPerWear, formatMoney, isStale, targetProgress } from '@/lib/cpw';
 import { confidenceNote } from '@/lib/condition';
+import { dateFormatOf, formatDate } from '@/lib/format';
 import type { Item, Profile } from '@/types';
 
 export function HistoryPanel({
@@ -14,7 +15,7 @@ export function HistoryPanel({
   profile,
 }: {
   item: Item;
-  profile: Pick<Profile, 'cpwTarget' | 'currency'>;
+  profile: Pick<Profile, 'cpwTarget' | 'currency' | 'preferences'>;
 }) {
   const cost = costPerWear(item, profile);
   // Module 18 §3b: a cost-per-wear standing on a remembered 80 is still worth showing,
@@ -23,6 +24,7 @@ export function HistoryPanel({
   const currency = item.currency ?? profile.currency;
   const progress = targetProgress(cost);
   const stale = isStale(item);
+  const dateFormat = dateFormatOf(profile.preferences);
 
   return (
     <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-5">
@@ -32,7 +34,7 @@ export function HistoryPanel({
         <Stat label="Worn" value={cost.wears === 0 ? 'Never' : `${cost.wears}×`} />
         <Stat
           label="Last worn"
-          value={item.lastWornOn ? new Date(item.lastWornOn).toLocaleDateString() : '—'}
+          value={formatDate(item.lastWornOn, dateFormat)}
         />
         <Stat
           label="Owned"
@@ -52,7 +54,7 @@ export function HistoryPanel({
 
         {item.retailer && <Stat label="From" value={item.retailer} />}
         {item.purchasedOn && (
-          <Stat label="Bought" value={new Date(item.purchasedOn).toLocaleDateString()} />
+          <Stat label="Bought" value={formatDate(item.purchasedOn, dateFormat)} />
         )}
       </dl>
 

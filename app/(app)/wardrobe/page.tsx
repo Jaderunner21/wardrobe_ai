@@ -14,6 +14,7 @@ import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState, StatRow } from '@/components/primitives';
 import { ItemCard } from '@/components/ItemCard';
+import { ItemRow } from '@/components/ItemRow';
 import { FilterBar } from '@/components/wardrobe/FilterBar';
 import { LoadMore } from '@/components/wardrobe/LoadMore';
 import { UploadIcon, HangerIcon } from '@/components/icons';
@@ -22,6 +23,8 @@ import { facetCounts, listItems } from '@/lib/items';
 import { publicUrlsFor } from '@/lib/storage';
 import { toCategory, type CategoryRow } from '@/lib/mappers';
 import { listQuerySchema } from '@/app/api/items/schemas';
+import { userPreferences } from '@/lib/preferences';
+import { defaultSortOf } from '@/lib/format';
 import { STYLE_LABELS } from '@/components/primitives';
 import type { Category, Style } from '@/types';
 
@@ -39,9 +42,24 @@ export default async function WardrobePage({ searchParams }: { searchParams: Sea
   if (!user) redirect('/login');
 
   const raw = await searchParams;
+  const preferences = await userPreferences();
+
+  /**
+   * The URL wins over the preference, and the preference wins over `recent` — module
+   * 16 §4's "default sort" is a default, not an override. `listQuerySchema` supplies
+   * `recent` whenever `sort` is absent, so the preference has to be applied to the raw
+   * params before parsing rather than after, or it would always lose to that default.
+   */
+  const withDefaults = raw.sort ? raw : { ...raw, sort: defaultSortOf(preferences) };
+
   // A hand-edited URL should degrade to the default view, not to an error page.
-  const parsed = listQuerySchema.safeParse(raw);
-  const query = parsed.success ? { ...parsed.data, limit: PAGE_SIZE } : { sort: 'recent' as const, limit: PAGE_SIZE };
+  const parsed = listQuerySchema.safeParse(withDefaults);
+  const query = parsed.success
+    ? { ...parsed.data, limit: PAGE_SIZE }
+    : { sort: defaultSortOf(preferences), limit: PAGE_SIZE };
+
+  /** Grid or list — a view choice, so it is not part of the items query. */
+  const view = raw.view === 'list' || raw.view === 'grid' ? raw.view : preferences.wardrobeView ?? 'grid';
 
   const supabase = await createClient();
 
@@ -132,7 +150,11 @@ export default async function WardrobePage({ searchParams }: { searchParams: Sea
         </aside>
 
         <div>
-          <FilterBar total={counts.total} needsReplacingCount={counts.needsReplacing} />
+          <FilterBar
+            total={counts.total}
+            needsReplacingCount={counts.needsReplacing}
+            view={view}
+          />
 
           {page.items.length === 0 ? (
             filtered ? (
@@ -165,15 +187,30 @@ export default async function WardrobePage({ searchParams }: { searchParams: Sea
               />
             )
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-              {page.items.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  category={item.categoryId ? categoriesById[item.categoryId] : undefined}
-                  imageUrl={urlsByPath[item.thumbPath]}
-                />
-              ))}
+            <div
+              className={
+                view === 'list'
+                  ? 'grid grid-cols-1 gap-3'
+                  : 'grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4'
+              }
+            >
+              {page.items.map((item) =>
+                view === 'list' ? (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    category={item.categoryId ? categoriesById[item.categoryId] : undefined}
+                    imageUrl={urlsByPath[item.thumbPath]}
+                  />
+                ) : (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    category={item.categoryId ? categoriesById[item.categoryId] : undefined}
+                    imageUrl={urlsByPath[item.thumbPath]}
+                  />
+                ),
+              )}
 
               {page.nextCursor && (
                 <LoadMore

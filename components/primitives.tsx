@@ -97,6 +97,15 @@ export function EmptyState({
   );
 }
 
+/**
+ * One pulsing block, sized by the caller. The building unit of every skeleton in the
+ * app — module 16 §5 asks for placeholders shaped like the thing that is coming, and
+ * that only works if the shape is decided per screen rather than here.
+ */
+export function Shimmer({ className = '' }: { className?: string }) {
+  return <span aria-hidden className={`block animate-pulse rounded bg-brand-50 ${className}`} />;
+}
+
 /** Loading placeholder that matches the final card. Never a centred spinner on a grid. */
 export function CardSkeleton() {
   return (
