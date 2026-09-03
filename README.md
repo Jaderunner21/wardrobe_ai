@@ -7,14 +7,14 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0-L3 code complete
+## Status — L0-L3 code complete, L4 started (module 11 rerank)
 
 ```
 L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
 L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓                     ← gate
 L2  Tagging         12 ✓ → 06 ✓                                                  ← gate
 L3  Recommendations 07 ✓ → 08 ✓ → 09 ✓ → 10 ✓ → 16(dashboard, outfits) ✓         ← gate
-L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──          ← next
+L4  AI + polish     11 ✓(rerank) → 17 → 18 → 16(states, mobile)  ── test run ──   ← here
 L5  AI ENGINE       19
 L6  Production      13 → 14(full) → 15(full)
 ```
@@ -74,7 +74,14 @@ clearable under Settings → Style.
 
 The dashboard closes L3: recently added items, Today's Weather Outfit with the
 forecast as its default and a manual override on top, and Style Insights — most worn
-category, wardrobe diversity, never worn. Every screen in the nav is now real. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
+category, wardrobe diversity, never worn. Every screen in the nav is now real.
+
+Module 11 adds the rerank layer: one model call per user, style and day turns the eight
+outfits the rules engine already validated into a ranked five with a sentence worth
+reading. It cannot invent a garment, because it only ever picks among outfits built
+from the wardrobe. Every failure — free plan, spent budget, model outage, unparseable
+response — silently keeps the rules order and its mechanical rationale. Chat is
+deferred; see below. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
 passed until the migrations are applied and real items go in.
 
 ## Running it

@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"ranked\":[{\"index\":9,\"rationale\":\"A red leather jacket lifts the whole thing.\"},{\"index\":0,\"rationale\":\"Clean and simple.\"},{\"index\":0,\"rationale\":\"Duplicate of the first.\"}]}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 400, "candidatesTokenCount": 60 }
+}

@@ -313,6 +313,13 @@ export interface CostPerWear {
 
 /** Exactly what the vision model is allowed to return. See module 06. */
 export interface TagResult {
+  /**
+   * A short human name — "Navy Oxford Shirt". ADDED to the spec's TagResult: module 05
+   * §2b calls `name` "what a person recognises in a grid of 60 thumbnails" and module
+   * 16 §3 puts it on the card, but nothing was filling it, so every AI-tagged item
+   * arrived nameless. Optional, because an older stored response will not have one.
+   */
+  name?: string;
   slot: Slot;
   categorySlug: string;   // matched against the user's categories
   style: Style;

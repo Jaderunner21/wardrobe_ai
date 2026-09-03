@@ -16,7 +16,14 @@ import { appError } from '@/lib/errors';
 import { serverEnv } from '@/lib/env';
 import type { TagResult } from '@/types';
 
-export const MODEL = 'gemini-2.5-flash-lite';
+/**
+ * DIVERGES from module 06, which pins `gemini-2.5-flash-lite`. That model now returns
+ * 404 for new API keys — "no longer available to new users… use models/
+ * gemini-3.5-flash-lite" — so every tagging call failed with AI_UNAVAILABLE and every
+ * upload landed in the Review step blank. Same family, same price band, same latency
+ * (~2s for a tag). Verified against the live API before changing.
+ */
+export const MODEL = 'gemini-3.5-flash-lite';
 
 const ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -28,6 +35,8 @@ const ENDPOINT = (model: string) =>
  * out at scale, in data you cannot recover (module 06 §1).
  */
 export const TagSchema = z.object({
+  /** Module 05 §2b: what a person recognises in a grid of 60 thumbnails. */
+  name: z.string().max(60).optional(),
   slot: z.enum(['top', 'bottom', 'fullbody', 'outerwear', 'footwear', 'accessory']),
   categorySlug: z.string(),
   subtype: z.string().max(40),
@@ -36,8 +45,14 @@ export const TagSchema = z.object({
   secondaryColors: z.array(z.string().max(24)).max(3),
   pattern: z.enum(['solid', 'striped', 'checked', 'printed', 'textured']),
   material: z.string().max(30),
-  formality: z.number().int().min(1).max(5),
-  warmth: z.number().int().min(1).max(5),
+  /**
+   * The model answers 0 on these when it cannot tell — a blank image, a garment it
+   * cannot read. Clamping into range keeps an otherwise good tag rather than throwing
+   * the whole thing away: `confidence` is the honest signal for "I do not know", and
+   * every one of these fields is editable on the Review screen anyway.
+   */
+  formality: z.number().int().catch(3).transform((n) => Math.min(5, Math.max(1, n))),
+  warmth: z.number().int().catch(3).transform((n) => Math.min(5, Math.max(1, n))),
   seasons: z.array(z.enum(['summer', 'monsoon', 'winter', 'all'])).min(1),
   style: z.enum(['lounge', 'workout', 'casual', 'date-night', 'party', 'business', 'formal']),
   confidence: z.number().min(0).max(1),
@@ -47,6 +62,7 @@ export const TagSchema = z.object({
 const TAG_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
+    name: { type: 'string' },
     slot: { type: 'string', enum: ['top', 'bottom', 'fullbody', 'outerwear', 'footwear', 'accessory'] },
     categorySlug: { type: 'string' },
     subtype: { type: 'string' },
@@ -65,6 +81,7 @@ const TAG_RESPONSE_SCHEMA = {
     confidence: { type: 'number' },
   },
   required: [
+    'name',
     'slot',
     'categorySlug',
     'subtype',
@@ -88,10 +105,12 @@ const TAG_RESPONSE_SCHEMA = {
 const TAG_PROMPT = `You are cataloguing a single garment for a personal wardrobe app.
 Return only the JSON described by the schema.
 
-formality: 1 = loungewear/pyjamas · 2 = t-shirt, jeans · 3 = shirt, chinos ·
-           4 = blazer, dress trousers · 5 = tuxedo, formal gown
-warmth:    1 = single thin layer · 3 = sweatshirt, light jacket ·
-           5 = heavy winter coat
+formality: an integer 1-5, never 0. 1 = loungewear/pyjamas · 2 = t-shirt, jeans ·
+           3 = shirt, chinos · 4 = blazer, dress trousers · 5 = tuxedo, formal gown
+warmth:    an integer 1-5, never 0. 1 = single thin layer ·
+           3 = sweatshirt, light jacket · 5 = heavy winter coat
+name:      a short human name for the garment, as a person would say it —
+           "Brown Leather Briefcase", "Navy Oxford Shirt". Title case, under 5 words.
 seasons:   pick every season the garment is wearable in; use ["all"] if unrestricted.
            Assume an Indian climate: hot summers, humid monsoon, mild winters.
 colorHex:  the dominant colour of the fabric, not the background or any shadow.
@@ -265,3 +284,94 @@ export async function tagGarment(
 
   return { ...result, data: parseTagResult(result.data) };
 }
+
+// ─────────────────────────────────────────────────────────── rerank (module 11 §4)
+
+/**
+ * The premium recommendation path:
+ *
+ *   rules engine → top 8 candidates → ONE model call → reordered top 5 + a rationale
+ *
+ * The model is not inventing outfits. It is picking among eight the rules engine already
+ * validated, and explaining them. That distinction is what keeps this cheap, fast, and
+ * structurally incapable of suggesting a garment the user does not own.
+ *
+ * NOTE: the caller must have called assertBudget(userId, 'rerank') first, and must
+ * recordUsage after. This file is the wrapper the guard is applied around.
+ */
+const RERANK_SCHEMA = {
+  type: 'object',
+  properties: {
+    ranked: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          index: { type: 'integer' },
+          rationale: { type: 'string' },
+        },
+        required: ['index', 'rationale'],
+      },
+    },
+  },
+  required: ['ranked'],
+} as const;
+
+const RerankSchema = z.object({
+  ranked: z
+    .array(
+      z.object({
+        index: z.number().int().min(0),
+        rationale: z.string().min(1).max(400),
+      }),
+    )
+    .min(1),
+});
+
+export interface RerankCandidate {
+  /** One line per outfit: what it is, and why the rules engine liked it. */
+  description: string;
+}
+
+const RERANK_PROMPT = `You are a personal stylist. Below are outfits assembled from a
+single person's own wardrobe, each with the scores that selected it.
+
+Rank them best first and write one sentence for each saying why it works. Reference the
+actual garments and the weather where it is relevant — "the olive overshirt breaks up the
+navy, and it is cool enough this evening to justify the extra layer" is the register.
+
+Rules:
+- Rank only the outfits given. Never mention a garment that is not in one of them.
+- Never suggest buying anything.
+- One sentence each, under 30 words, no preamble.
+- Return every outfit exactly once, by its index.`;
+
+export async function rerankOutfits(
+  candidates: RerankCandidate[],
+  context: string,
+): Promise<ModelResult<{ ranked: { index: number; rationale: string }[] }>> {
+  const lines = candidates.map((c, i) => `${i}. ${c.description}`).join('\n');
+
+  const result = await callModel<unknown>({
+    prompt: `${RERANK_PROMPT}\n\n${context}\n\nOUTFITS:\n${lines}`,
+    schema: RERANK_SCHEMA,
+    maxOutputTokens: 400,
+  });
+
+  const parsed = RerankSchema.safeParse(result.data);
+  if (!parsed.success) {
+    console.error('[gemini] rerank failed schema', parsed.error.issues);
+    throw appError('AI_UNAVAILABLE');
+  }
+
+  // An index the model invented would silently drop or duplicate an outfit.
+  const valid = parsed.data.ranked.filter((r) => r.index >= 0 && r.index < candidates.length);
+  if (valid.length === 0) throw appError('AI_UNAVAILABLE');
+
+  return { ...result, data: { ranked: dedupeByIndex(valid) } };
+}
+
+const dedupeByIndex = <T extends { index: number }>(rows: T[]): T[] => {
+  const seen = new Set<number>();
+  return rows.filter((r) => (seen.has(r.index) ? false : (seen.add(r.index), true)));
+};

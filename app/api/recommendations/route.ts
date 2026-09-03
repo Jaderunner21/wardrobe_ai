@@ -18,7 +18,8 @@ import { recommend, seasonFor, type EngineContext } from '@/lib/recommender';
 import { pairKey } from '@/lib/recommender/score';
 import { cityKeyFor, getWeather } from '@/lib/weather';
 import { publicUrlsFor } from '@/lib/storage';
-import { localDay } from '@/lib/budget';
+import { assertBudget, localDay, recordUsage } from '@/lib/budget';
+import { rerankOutfits } from '@/lib/gemini';
 import { toItem, toStyleProfile, type ItemRow, type StyleProfileRow } from '@/lib/mappers';
 import { STYLES } from '@/app/api/items/schemas';
 import type { Item, Recommendation, Style, WeatherContext } from '@/types';
@@ -45,6 +46,8 @@ const cacheKeyFor = (style: string, bucket: number | null, wardrobeVersion: numb
 interface CachedPayload {
   recommendations: { itemIds: string[]; score: number; rationale: string | null }[];
   reason: string | null;
+  /** Cached alongside the selection so a rerank is not re-bought on every open. */
+  source?: 'rules' | 'llm';
 }
 
 export const GET = handle(async (request: Request) => {
@@ -141,7 +144,7 @@ export const GET = handle(async (request: Request) => {
               slots: outfitItems.map((i) => i.slot).filter((s) => s !== null),
               score: r.score,
               rationale: r.rationale,
-              source: 'rules',
+              source: cached.source ?? 'rules',
             } as Recommendation)
           : null;
       })
@@ -153,7 +156,7 @@ export const GET = handle(async (request: Request) => {
         recommendations: rehydrated,
         weather,
         cached: true,
-        source: 'rules',
+        source: cached.source ?? 'rules',
         reason: cached.reason,
         imageUrls: await thumbUrls(rehydrated),
       });
@@ -213,6 +216,31 @@ export const GET = handle(async (request: Request) => {
 
   const result = recommend(ctx);
 
+  /**
+   * The premium layer — module 11 §4, §6. One model call per (user, style, day): the
+   * result is cached alongside the rules selection, so refreshing does not re-buy it.
+   *
+   * Every failure here is silent. A free plan, an exhausted rerank budget, a model
+   * outage, a response that will not parse — all of them leave the rules-engine order
+   * and its mechanical rationale in place. This endpoint never returns an error
+   * (module 08 §7), and a paying user's bad afternoon must not become everyone's.
+   */
+  let source: 'rules' | 'llm' = 'rules';
+  if (result.recommendations.length > 1) {
+    try {
+      await assertBudget(user.id, 'rerank');
+      const reranked = await applyRerank(result.recommendations, ctx);
+      if (reranked) {
+        result.recommendations = reranked.recommendations;
+        source = 'llm';
+        await recordUsage(user.id, 'rerank', reranked.inTokens, reranked.outTokens);
+      }
+    } catch (e) {
+      // PREMIUM_REQUIRED and AI_BUDGET_EXCEEDED land here too; both are normal.
+      console.info('[recommendations] rerank skipped', (e as Error)?.message);
+    }
+  }
+
   // Cache the selection, not the items. Failure here is not the user's problem.
   const expires = new Date(Date.now() + CACHE_TTL_HOURS * 3600_000).toISOString();
   const payload: CachedPayload = {
@@ -222,6 +250,7 @@ export const GET = handle(async (request: Request) => {
       rationale: r.rationale,
     })),
     reason: result.reason,
+    source,
   };
 
   const { error: cacheError } = await supabase
@@ -236,11 +265,56 @@ export const GET = handle(async (request: Request) => {
     recommendations: result.recommendations,
     weather,
     cached: false,
-    source: 'rules',
+    source,
     reason: result.reason,
     imageUrls: await thumbUrls(result.recommendations),
   });
 });
+
+/**
+ * Describes each candidate compactly — the garments and the terms that selected it, not
+ * full item rows (module 11 §4). Returns null when the model declines to be useful, so
+ * the caller keeps the rules order.
+ */
+async function applyRerank(
+  candidates: Recommendation[],
+  ctx: EngineContext,
+): Promise<{ recommendations: Recommendation[]; inTokens: number; outTokens: number } | null> {
+  const described = candidates.map((r) => ({
+    description: r.items
+      .map((i) => `${i.primaryColor ?? 'unknown'} ${i.subtype ?? i.slot ?? 'item'}`)
+      .join(' + '),
+  }));
+
+  const context = [
+    `STYLE: ${ctx.style}`,
+    ctx.weather
+      ? `WEATHER: ${Math.round(ctx.weather.tempMinC)}-${Math.round(ctx.weather.tempMaxC)}C, ${ctx.weather.condition}`
+      : 'WEATHER: unknown',
+    `SEASON: ${ctx.season}`,
+  ].join('\n');
+
+  const result = await rerankOutfits(described, context);
+
+  const ordered = result.data.ranked
+    .flatMap<Recommendation>(({ index, rationale }) => {
+      const candidate = candidates[index];
+      return candidate ? [{ ...candidate, rationale, source: 'llm' }] : [];
+    });
+
+  if (ordered.length === 0) return null;
+
+  // Anything the model dropped keeps its rules-engine rationale and its place at the
+  // end, so a partial response never loses an outfit.
+  const kept = new Set(ordered.map((r) => r.items.map((i) => i.id).join(':')));
+  const remainder = candidates.filter((r) => !kept.has(r.items.map((i) => i.id).join(':')));
+
+  return {
+    recommendations: [...ordered, ...remainder].slice(0, ctx.limit),
+    inTokens: result.inTokens,
+    outTokens: result.outTokens,
+  };
+}
 
 /**
  * Signed thumbnails for everything in the response — one batch call, on the server

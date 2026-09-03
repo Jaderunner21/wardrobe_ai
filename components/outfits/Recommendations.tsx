@@ -22,6 +22,7 @@ interface Response {
   recommendations: Recommendation[];
   weather: WeatherContext | null;
   cached: boolean;
+  source: 'rules' | 'llm';
   reason: string | null;
   /** item id → signed thumbnail, signed server-side in one batch. */
   imageUrls: Record<string, string>;

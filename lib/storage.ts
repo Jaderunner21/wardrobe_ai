@@ -7,6 +7,7 @@
  * provider-specific, so the swap at ~900 accounts is this file plus a bucket copy.
  */
 import 'server-only';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 
 export const BUCKET = 'items';
@@ -32,7 +33,13 @@ export const UPLOAD_TOKEN_TTL_SECONDS = 60 * 60 * 2;
 /** Export links live 24h (module 03 §5). */
 export const EXPORT_URL_TTL_SECONDS = 60 * 60 * 24;
 
-const storage = async () => (await createClient()).storage.from(BUCKET);
+/**
+ * Every provider call goes through here. `as` lets a caller supply a different client —
+ * the admin console deletes another person's images and cannot use the caller's own
+ * session for that — without any other file learning what the provider is.
+ */
+const storage = async (as?: SupabaseClient) =>
+  (as ?? (await createClient())).storage.from(BUCKET);
 
 /**
  * A token the browser uploads straight to storage with, so the function never sees
@@ -111,9 +118,9 @@ export async function signedUrlsFor(
 }
 
 /** Removes whatever paths it is given — pass both the main and the thumb. */
-export async function deleteObjects(paths: string[]): Promise<void> {
+export async function deleteObjects(paths: string[], as?: SupabaseClient): Promise<void> {
   if (paths.length === 0) return;
-  const client = await storage();
+  const client = await storage(as);
 
   const CHUNK = 100;
   for (let i = 0; i < paths.length; i += CHUNK) {
@@ -127,8 +134,11 @@ export async function deleteObjects(paths: string[]): Promise<void> {
  * where storage goes first: if it fails you still have the row and can retry, but if
  * the row goes first the objects are unreachable orphans consuming quota forever.
  */
-export async function listUserObjects(userId: string): Promise<string[]> {
-  const client = await storage();
+export async function listUserObjects(
+  userId: string,
+  as?: SupabaseClient,
+): Promise<string[]> {
+  const client = await storage(as);
   const prefix = userPrefix(userId);
   const found: string[] = [];
 

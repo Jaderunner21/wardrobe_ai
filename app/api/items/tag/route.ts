@@ -92,6 +92,7 @@ export const POST = handle(async (request: Request) => {
       .from('items')
       .update({
         status: 'draft', // Review & Edit, not the wardrobe. Save All is what promotes it.
+        name: tag.name ?? null,
         category_id: matched?.id ?? null,
         slot: tag.slot,
         style: tag.style,

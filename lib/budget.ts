@@ -16,12 +16,40 @@ import { appError } from '@/lib/errors';
 import { AI_LIMITS, AI_LIMITS_TEST, type AiCallKind, type AiUsage, type Plan } from '@/types';
 
 /**
- * Test phase raises the caps so testers are not throttled while giving feedback — but
- * they stay finite. A tester with a broken client bills you exactly as hard as an
- * attacker would. One environment variable, no code change (module 12 §6).
+ * The compile-time fallback. `plan_features` (0010) is the real source of truth, so an
+ * operator can change what a plan includes without a deploy; this is what answers when
+ * that table cannot be read — a DB blip must not silently hand out unlimited AI.
+ *
+ * Test phase raises the caps so testers are not throttled while giving feedback, but
+ * they stay finite: a tester with a broken client bills you exactly as hard as an
+ * attacker would (module 12 §6).
  */
 export const limitFor = (plan: Plan, kind: AiCallKind, phase = process.env.PHASE): number =>
   (phase === 'test' ? AI_LIMITS_TEST : AI_LIMITS)[plan][kind];
+
+const COLUMN: Record<AiCallKind, 'tag_limit' | 'chat_limit' | 'rerank_limit'> = {
+  tag: 'tag_limit',
+  chat: 'chat_limit',
+  rerank: 'rerank_limit',
+};
+
+/** The live entitlement for a plan, falling back to the constant when unavailable. */
+async function limitFromDb(
+  supabase: SupabaseClient,
+  plan: Plan,
+  kind: AiCallKind,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('plan_features')
+    .select('tag_limit, chat_limit, rerank_limit')
+    .eq('plan', plan)
+    .maybeSingle();
+
+  if (error || !data) return limitFor(plan, kind);
+
+  const value = (data as Record<string, number>)[COLUMN[kind]];
+  return typeof value === 'number' ? value : limitFor(plan, kind);
+}
 
 /**
  * "Day" is the user's day, not UTC (module 12 §3). A user in Asia/Kolkata whose budget
@@ -86,7 +114,12 @@ async function loadGuard(
   const plan = (data?.plan ?? 'free') as Plan;
   const timezone = data?.timezone ?? 'Asia/Kolkata';
 
-  return { plan, timezone, day: localDay(timezone), limit: limitFor(plan, kind) };
+  return {
+    plan,
+    timezone,
+    day: localDay(timezone),
+    limit: await limitFromDb(supabase, plan, kind),
+  };
 }
 
 /**
@@ -194,9 +227,11 @@ export async function getLimits(userId: string): Promise<Record<AiCallKind, numb
   const { data } = await supabase.from('profiles').select('plan').eq('id', userId).single();
   const plan = (data?.plan ?? 'free') as Plan;
 
-  return {
-    tag: limitFor(plan, 'tag'),
-    chat: limitFor(plan, 'chat'),
-    rerank: limitFor(plan, 'rerank'),
-  };
+  const [tag, chat, rerank] = await Promise.all([
+    limitFromDb(supabase, plan, 'tag'),
+    limitFromDb(supabase, plan, 'chat'),
+    limitFromDb(supabase, plan, 'rerank'),
+  ]);
+
+  return { tag, chat, rerank };
 }

@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"ranked\":[{\"index\":2,\"rationale\":\"The olive overshirt breaks up the navy, and it is cool enough this evening to justify the extra layer.\"},{\"index\":0,\"rationale\":\"White with beige keeps it light for a warm afternoon without looking washed out.\"},{\"index\":1,\"rationale\":\"Black denim grounds the pale shirt for an evening that runs later than planned.\"}]}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 412, "candidatesTokenCount": 96 }
+}

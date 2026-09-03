@@ -127,8 +127,16 @@ export function OutfitCard({
 
       {outfit.rationale && (
         <section className="mt-3 rounded-[var(--radius)] bg-brand-50 p-3">
-          <h4 className="text-chip font-semibold uppercase tracking-wide text-brand-800">
+          <h4 className="flex items-center gap-2 text-chip font-semibold uppercase tracking-wide text-brand-800">
             Why This Works
+            {/* The premium surface, visible and named (module 16 §4). When the rerank
+                is unavailable this reads as the rules engine's mechanical line instead,
+                with no badge and no explanation owed. */}
+            {outfit.source === 'llm' && (
+              <span className="rounded-full bg-brand-600 px-2 py-0.5 text-chip font-medium normal-case tracking-normal text-white">
+                Styled for you
+              </span>
+            )}
           </h4>
           <p className="mt-1 text-meta text-text-dim">{outfit.rationale}</p>
         </section>

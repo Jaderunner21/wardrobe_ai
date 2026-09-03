@@ -18,6 +18,8 @@ import { AppError } from '@/lib/errors';
 import type { TagResult } from '@/types';
 
 import shirt from './fixtures/gemini-tag-shirt.json';
+import rerank from './fixtures/gemini-rerank.json';
+import rerankBadIndex from './fixtures/gemini-rerank-bad-index.json';
 import outOfRange from './fixtures/gemini-tag-out-of-range.json';
 import badSlot from './fixtures/gemini-tag-bad-slot.json';
 import truncated from './fixtures/gemini-truncated.json';
@@ -77,10 +79,17 @@ describe('parseTagResult', () => {
     expect(tag.confidence).toBeCloseTo(0.92);
   });
 
-  it('rejects a formality outside 1..5, which the DB check would refuse anyway', () => {
-    expect(codeOf(() => parseTagResult(parseModelResponse(outOfRange).data))).toBe(
-      'AI_UNAVAILABLE',
-    );
+  it('clamps a formality outside 1..5 instead of throwing the whole tag away', () => {
+    /**
+     * The live model answers 0 on formality and warmth when it cannot tell — a blank
+     * image, a garment it cannot read — and the DB check constraint would refuse that.
+     * Rejecting the response would lose an otherwise good tag over one field, so it is
+     * clamped into range; `confidence` is the honest "I do not know" signal, and every
+     * one of these fields is editable on the Review screen.
+     */
+    const tag = parseTagResult(parseModelResponse(outOfRange).data);
+    expect(tag.formality).toBe(5); // fixture says 7
+    expect(parseTagResult({ ...tag, formality: 0, warmth: 0 }).formality).toBe(1);
   });
 
   it('rejects a slot the outfit engine cannot assemble on', () => {
@@ -112,5 +121,42 @@ describe('parseTagResult', () => {
     const base = TagSchema.parse(parseModelResponse(shirt).data);
     const tagged = parseTagResult({ ...base, condition: 4 });
     expect('condition' in tagged).toBe(false);
+  });
+});
+
+/**
+ * The rerank half of module 11. The model is ranking eight outfits the rules engine
+ * already validated, so the only things that can go wrong are structural: an index that
+ * is not one of the candidates, a duplicate, or a response that will not parse. All
+ * three degrade to the rules order rather than erroring (module 11 §6), and all three
+ * are cheap to get wrong silently.
+ */
+describe('rerank responses', () => {
+  interface Ranked {
+    ranked: { index: number; rationale: string }[];
+  }
+
+  it('parses a well-formed ranking', () => {
+    const { data, inTokens, outTokens } = parseModelResponse<Ranked>(rerank);
+    expect(data.ranked.map((r) => r.index)).toEqual([2, 0, 1]);
+    expect(data.ranked[0]?.rationale).toContain('olive overshirt');
+    expect(inTokens).toBe(412);
+    expect(outTokens).toBe(96);
+  });
+
+  it('carries a rationale worth reading, not a mechanical one', () => {
+    // Module 11 §5: this sentence is what a premium user is paying for.
+    const { data } = parseModelResponse<Ranked>(rerank);
+    for (const row of data.ranked) {
+      expect(row.rationale.split(' ').length).toBeGreaterThan(6);
+      expect(row.rationale.length).toBeLessThanOrEqual(400);
+    }
+  });
+
+  it('exposes the out-of-range and duplicate indexes the caller has to drop', () => {
+    // The fixture names a garment the user does not own, at an index that does not
+    // exist. `rerankOutfits` filters both; this asserts the shape it filters on.
+    const { data } = parseModelResponse<Ranked>(rerankBadIndex);
+    expect(data.ranked.map((r) => r.index)).toEqual([9, 0, 0]);
   });
 });
