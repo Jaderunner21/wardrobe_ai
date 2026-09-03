@@ -86,6 +86,13 @@ jobs:
           SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: bash scripts/check-rls.sh
 
+      # module 13 §3 — a downgrade archives the excess and deletes nothing. Runs the
+      # real function against real rows, in a transaction that rolls back.
+      - name: Downgrade archives, never deletes
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: bash scripts/check-downgrade.sh
+
       # 5
       - name: No select('*')
         run: bash scripts/check-select-star.sh

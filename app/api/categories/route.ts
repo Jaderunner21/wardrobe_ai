@@ -16,36 +16,13 @@
  * only rows that are theirs, so "delete the default Tops category" is refused by the
  * database rather than by a check here.
  */
-import { z } from 'zod';
 import { handle, ok, parseBody } from '@/lib/api';
 import { appError } from '@/lib/errors';
 import { requireUser, createClient } from '@/lib/supabase/server';
 import { toCategory, type CategoryRow } from '@/lib/mappers';
-import { SLOTS } from '@/app/api/items/schemas';
+import { CATEGORY_COLUMNS, categoryBodySchema, slugify } from './schemas';
 
 export const dynamic = 'force-dynamic';
-
-export const CATEGORY_COLUMNS =
-  'id, user_id, name, slug, icon, default_slot, subtypes, outfit_eligible, sort_order';
-
-export const categoryBodySchema = z.object({
-  name: z.string().trim().min(1).max(40),
-  /** Which slot items filed here default to — the engine's axis, not the display one. */
-  defaultSlot: z.enum(SLOTS),
-  /** Emoji, as the prototype uses. One or two characters; not validated as an emoji. */
-  icon: z.string().trim().max(4).nullish(),
-  subtypes: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
-  /** False keeps items browsable and countable but never assembled (§7.1). */
-  outfitEligible: z.boolean().optional(),
-});
-
-/** "Ethnic Wear" → "ethnic-wear". Unique per user, enforced by a partial index. */
-export const slugify = (name: string): string =>
-  name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
 
 export const GET = handle(async () => {
   await requireUser();

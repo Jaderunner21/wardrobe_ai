@@ -25,6 +25,32 @@ const serverSchema = z.object({
   PHASE: z.enum(['test', 'production']).default('production'),
 });
 
+/**
+ * Module 13 §5 and its acceptance line: "staging uses test keys — verified by asserting
+ * the key prefix at startup."
+ *
+ * Razorpay test keys start `rzp_test_`, live keys `rzp_live_`. A live key in a preview
+ * deployment is a real charge on a real card, which is not a bug found in review — it is
+ * one found in someone's bank statement. So the mismatch refuses to boot.
+ *
+ * Here rather than in `lib/billing.ts` because that module is server-only for its use of
+ * `node:crypto`, and this has to run wherever the environment is first read.
+ */
+export function assertKeyMatchesPhase(keyId: string | undefined, phase: string): void {
+  if (!keyId) return; // billing not configured; nothing to get wrong yet
+
+  if (phase !== 'production' && keyId.startsWith('rzp_live_')) {
+    throw new Error(
+      'A live Razorpay key is configured outside production. That charges real cards. ' +
+        'Use rzp_test_ keys everywhere except the production deployment.',
+    );
+  }
+}
+
+/** Whether billing is wired up at all. False through the whole test phase. */
+export const billingConfigured = (keyId?: string, keySecret?: string): boolean =>
+  Boolean(keyId && keySecret);
+
 function fail(where: string, error: z.ZodError): never {
   const lines = error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n');
   throw new Error(`Invalid ${where} environment:\n${lines}`);
@@ -46,6 +72,15 @@ export function serverEnv(): z.infer<typeof serverSchema> {
   if (serverCache) return serverCache;
   const parsed = serverSchema.safeParse(process.env);
   if (!parsed.success) fail('server', parsed.error);
+
+  /**
+   * Module 13 §5, and the only startup check that exists to prevent a charge rather
+   * than an outage: a live Razorpay key outside production bills a real card on a
+   * preview deployment. Refusing to boot is the correct severity — this is not a
+   * warning you notice in a log, it is one you notice in someone's bank statement.
+   */
+  assertKeyMatchesPhase(parsed.data.RAZORPAY_KEY_ID, parsed.data.PHASE);
+
   serverCache = parsed.data;
   return serverCache;
 }

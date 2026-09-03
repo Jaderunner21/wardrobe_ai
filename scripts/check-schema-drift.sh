@@ -53,6 +53,7 @@ check style_profiles user_id color_affinity category_affinity formality_bias nov
 check plan_features plan tag_limit chat_limit rerank_limit item_cap
 check ai_usage user_id day tag_calls chat_calls llm_calls in_tokens out_tokens
 check weather_cache city_key day payload
+check processed_webhooks event_id event_type received_at
 
 if [ "$status" -ne 0 ]; then
   echo

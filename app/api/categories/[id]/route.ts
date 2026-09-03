@@ -16,7 +16,7 @@ import { handle, ok, parseBody } from '@/lib/api';
 import { appError } from '@/lib/errors';
 import { requireUser, createClient } from '@/lib/supabase/server';
 import { toCategory, type CategoryRow } from '@/lib/mappers';
-import { CATEGORY_COLUMNS, categoryBodySchema, slugify } from '../route';
+import { CATEGORY_COLUMNS, categoryBodySchema, slugify } from '../schemas';
 
 export const dynamic = 'force-dynamic';
 

@@ -14,6 +14,7 @@ import { redirect } from 'next/navigation';
 import { PageHeader, NotBuiltYet } from '@/components/PageHeader';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { AppearancePanel } from '@/components/settings/AppearancePanel';
+import { PlanPanel } from '@/components/settings/PlanPanel';
 import { CategoriesPanel } from '@/components/settings/CategoriesPanel';
 import { ProfileForm } from '@/components/settings/ProfileForm';
 import { AccountData, SignOutButton } from '@/components/settings/AccountData';
@@ -21,6 +22,7 @@ import { createClient, getUser } from '@/lib/supabase/server';
 import { toCategory, toProfile, type CategoryRow, type ProfileRow } from '@/lib/mappers';
 import { dateFormatOf, formatDate } from '@/lib/format';
 import { getLimits, getUsage } from '@/lib/budget';
+import { billingConfigured, serverEnv } from '@/lib/env';
 import { StyleProfilePanel } from '@/components/settings/StyleProfilePanel';
 import { toStyleProfile, type StyleProfileRow } from '@/lib/mappers';
 
@@ -47,7 +49,7 @@ export default async function SettingsPage() {
 
   // Today's AI usage, shown to the user rather than only to us (module 12 §7). A cap
   // the user can see coming is a cap they plan around instead of reporting as a bug.
-  const [usage, limits, styleRes, categoryRes] = await Promise.all([
+  const [usage, limits, styleRes, categoryRes, planRes] = await Promise.all([
     getUsage(user.id),
     getLimits(user.id),
     supabase
@@ -58,6 +60,11 @@ export default async function SettingsPage() {
       .eq('user_id', user.id)
       .maybeSingle(),
     supabase.from('categories').select(CATEGORY_COLUMNS).order('sort_order'),
+    supabase
+      .from('plan_features')
+      .select('plan, item_cap')
+      .eq('plan', profile?.plan ?? 'free')
+      .maybeSingle(),
   ]);
 
   const categories = ((categoryRes.data ?? []) as unknown as CategoryRow[]).map(toCategory);
@@ -138,6 +145,20 @@ export default async function SettingsPage() {
                     Resets at midnight, {profile?.timezone ?? 'Asia/Kolkata'}.
                   </p>
                 </section>
+
+                {profile && (
+                  <PlanPanel
+                    plan={profile.plan}
+                    renewsAt={profile.planRenewsAt}
+                    billingEnabled={billingConfigured(
+                      serverEnv().RAZORPAY_KEY_ID,
+                      serverEnv().RAZORPAY_KEY_SECRET,
+                    )}
+                    itemCap={(planRes.data?.item_cap as number | null) ?? null}
+                    itemCount={profile.itemCount}
+                    dateFormat={dateFormat}
+                  />
+                )}
 
                 {profile && <ProfileForm profile={profile} />}
 
