@@ -97,6 +97,13 @@ export function ItemCard({
           >
             <HeartGlyph filled={favourite} />
           </button>
+          <Link
+            href={{ pathname: `/wardrobe/${item.id}` }}
+            aria-label={`Edit ${label}`}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 text-text-dim backdrop-blur-sm hover:text-brand-700"
+          >
+            <PencilGlyph />
+          </Link>
           <button
             type="button"
             onClick={moveToBin}
@@ -158,6 +165,25 @@ export function ItemCard({
         )}
       </div>
     </article>
+  );
+}
+
+function PencilGlyph() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
   );
 }
 

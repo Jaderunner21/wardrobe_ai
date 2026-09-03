@@ -11,6 +11,7 @@ import { ItemImage } from '@/components/ItemImage';
 import { CategoryPill, ColorDot, seasonSummary, STYLE_LABELS } from '@/components/primitives';
 import { ItemDetailActions } from '@/components/wardrobe/ItemDetailActions';
 import { HistoryPanel } from '@/components/wardrobe/HistoryPanel';
+import { EditItemForm } from '@/components/wardrobe/EditItemForm';
 import { createClient, getUser } from '@/lib/supabase/server';
 import { ITEM_DETAIL_SELECT } from '@/lib/items';
 import { publicUrlsFor } from '@/lib/storage';
@@ -98,11 +99,18 @@ export default async function ItemDetailPage({
               </div>
             </div>
 
-            <ItemDetailActions
-              itemId={item.id}
-              archived={item.archived}
-              favourite={item.favourite}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <EditItemForm
+                item={item}
+                categories={categories}
+                imageUrl={urls[item.thumbPath]}
+              />
+              <ItemDetailActions
+                itemId={item.id}
+                archived={item.archived}
+                favourite={item.favourite}
+              />
+            </div>
           </div>
 
           <dl className="mt-6 grid gap-x-6 gap-y-4 sm:grid-cols-2">
