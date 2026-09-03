@@ -51,7 +51,6 @@ function item(partial: Partial<Item> & { slot: Slot }): Item {
     name: null,
     notes: null,
     categoryId: 'cat-generic',
-    slot: partial.slot,
     style: 'casual',
     brand: null,
     subtype: null,

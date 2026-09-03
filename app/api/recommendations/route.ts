@@ -17,6 +17,7 @@ import { requireUser, createClient } from '@/lib/supabase/server';
 import { recommend, seasonFor, type EngineContext } from '@/lib/recommender';
 import { pairKey } from '@/lib/recommender/score';
 import { cityKeyFor, getWeather } from '@/lib/weather';
+import { publicUrlsFor } from '@/lib/storage';
 import { localDay } from '@/lib/budget';
 import { toItem, toStyleProfile, type ItemRow, type StyleProfileRow } from '@/lib/mappers';
 import { STYLES } from '@/app/api/items/schemas';
@@ -133,6 +134,7 @@ export const GET = handle(async (request: Request) => {
         cached: true,
         source: 'rules',
         reason: cached.reason,
+        imageUrls: await thumbUrls(rehydrated),
       });
     }
   }
@@ -215,5 +217,22 @@ export const GET = handle(async (request: Request) => {
     cached: false,
     source: 'rules',
     reason: result.reason,
+    imageUrls: await thumbUrls(result.recommendations),
   });
 });
+
+/**
+ * Signed thumbnails for everything in the response — one batch call, on the server
+ * (module 04 §6). Keyed by item id so the card does not need to know about paths.
+ */
+async function thumbUrls(recommendations: Recommendation[]): Promise<Record<string, string>> {
+  const items = recommendations.flatMap((r) => r.items);
+  const byPath = await publicUrlsFor(items.map((i) => i.thumbPath));
+
+  const byId: Record<string, string> = {};
+  for (const item of items) {
+    const url = byPath[item.thumbPath];
+    if (url) byId[item.id] = url;
+  }
+  return byId;
+}
