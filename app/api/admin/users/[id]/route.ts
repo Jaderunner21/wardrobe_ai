@@ -1,5 +1,6 @@
 /**
- * PATCH  /api/admin/users/[id] — change a plan, or grant/revoke admin
+ * PATCH  /api/admin/users/[id] — change a plan, grant/revoke admin, or move a user
+ *                                 between module 19 §7's recommendation arms
  * DELETE /api/admin/users/[id] — remove someone from the wardrobe entirely
  *
  * Deletion here is the same two-step as a user deleting their own account (module 03
@@ -12,6 +13,7 @@ import { appError } from '@/lib/errors';
 import { requireAdmin } from '@/lib/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteObjects, listUserObjects } from '@/lib/storage';
+import { assignmentOf, toFlags } from '@/lib/flags';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +23,8 @@ const patchSchema = z
   .object({
     plan: z.enum(['free', 'premium']).optional(),
     isAdmin: z.boolean().optional(),
+    /** null clears the override and returns the user to the deterministic default. */
+    aiEngine: z.boolean().nullable().optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 
@@ -34,21 +38,49 @@ export const PATCH = handle(async (request: Request, context: Context) => {
     throw appError('VALIDATION_FAILED', 'You cannot remove your own admin access.');
   }
 
+  const client = createAdminClient();
+
   const row: Record<string, unknown> = {};
   if (patch.plan) row.plan = patch.plan;
   if (patch.isAdmin !== undefined) row.is_admin = patch.isAdmin;
 
-  const client = createAdminClient();
+  /**
+   * Merged, not replaced: `flags` is one jsonb object, and the next flag added here must
+   * not be wiped by a write that only meant to move someone between arms.
+   */
+  if (patch.aiEngine !== undefined) {
+    const { data: current } = await client
+      .from('profiles')
+      .select('flags')
+      .eq('id', id)
+      .maybeSingle();
+
+    const flags = { ...toFlags(current?.flags) };
+    if (patch.aiEngine === null) delete flags.aiRecommendations;
+    else flags.aiRecommendations = patch.aiEngine;
+    row.flags = flags;
+  }
+
   const { data, error } = await client
     .from('profiles')
     .update(row)
     .eq('id', id)
-    .select('id, plan, is_admin')
+    .select('id, plan, is_admin, flags')
     .maybeSingle();
   if (error) throw error;
   if (!data) throw appError('NOT_FOUND');
 
-  return ok({ user: { id: data.id, plan: data.plan, isAdmin: data.is_admin } });
+  const assignment = assignmentOf(data.id, toFlags(data.flags));
+
+  return ok({
+    user: {
+      id: data.id,
+      plan: data.plan,
+      isAdmin: data.is_admin,
+      aiEngine: assignment.enabled,
+      aiEngineSource: assignment.source,
+    },
+  });
 });
 
 export const DELETE = handle(async (_request: Request, context: Context) => {

@@ -45,7 +45,7 @@ check retailer_durability retailer items avg_wears avg_price avg_cost_per_wear  
 check outfits id user_id source style season temp_bucket score rationale saved planned_for
 check outfit_items outfit_id item_id slot
 check profiles id display_name city country timezone plan item_count wardrobe_version \
-  currency cpw_target is_admin preferences
+  currency cpw_target is_admin preferences flags
 check categories id user_id name slug icon default_slot subtypes outfit_eligible sort_order
 check feedback id user_id outfit_id item_id kind worn_on
 check style_profiles user_id color_affinity category_affinity formality_bias novelty_bias \

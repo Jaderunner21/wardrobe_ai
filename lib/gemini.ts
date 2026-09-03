@@ -375,3 +375,95 @@ const dedupeByIndex = <T extends { index: number }>(rows: T[]): T[] => {
   const seen = new Set<number>();
   return rows.filter((r) => (seen.has(r.index) ? false : (seen.add(r.index), true)));
 };
+
+// ═══════════════════════════════════════════ outfit selection (module 19)
+
+/**
+ * Module 19: the model does the SELECTING, not just the ranking.
+ *
+ * Module 08's scoring survives as the fallback, and this is why it has to: the model
+ * returns garment ids, and an id it was not given means it invented a garment. Nothing
+ * here trusts the response — the caller checks every id against the candidate set it
+ * sent, and `lib/recommender/ai.ts` is where that happens.
+ *
+ * `stretch` is module 19 §4's dial made explicit rather than left to prompt vibes. Four
+ * outfits inside the learned profile, one deliberate step outside it, LABELLED — because
+ * an unexplained odd suggestion reads as the AI being wrong, and a labelled one reads as
+ * an offer the user can accept or refuse.
+ */
+const SELECT_SCHEMA = {
+  type: 'object',
+  properties: {
+    outfits: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          itemIds: { type: 'array', items: { type: 'string' } },
+          rationale: { type: 'string' },
+          stretch: { type: 'boolean' },
+        },
+        required: ['itemIds', 'rationale', 'stretch'],
+      },
+    },
+  },
+  required: ['outfits'],
+} as const;
+
+const SelectSchema = z.object({
+  outfits: z
+    .array(
+      z.object({
+        itemIds: z.array(z.string().min(1)).min(2).max(6),
+        rationale: z.string().min(1).max(400),
+        stretch: z.boolean().catch(false),
+      }),
+    )
+    .min(1),
+});
+
+export interface SelectedOutfit {
+  itemIds: string[];
+  rationale: string;
+  stretch: boolean;
+}
+
+const SELECT_PROMPT = `You are a stylist. Build outfits from ONLY the garments listed below.
+
+RULES
+  - Every outfit needs a top and a bottom, or one full-body garment.
+  - Include footwear when it is listed. Include outerwear only if the weather calls for it.
+  - Use only the ids listed. Never invent a garment.
+  - No two outfits may share more than one garment.
+  - Prefer garments not worn recently.
+  - Respect the avoid list and the never-pair list absolutely.
+  - Make the LAST outfit one deliberate stretch: a pairing this person has not tried,
+    still inside the never-pair rules, with stretch set to true. Every other outfit has
+    stretch set to false.
+  - The rationale references the actual garments and the weather where it matters. One or
+    two sentences, no preamble, never suggest buying anything.`;
+
+export async function selectOutfits(
+  candidateLines: string[],
+  context: string,
+  count: number,
+): Promise<ModelResult<{ outfits: SelectedOutfit[] }>> {
+  const result = await callModel<unknown>({
+    prompt: [
+      SELECT_PROMPT.replace('Build outfits', `Build ${count} outfits`),
+      `\nCONTEXT\n${context}`,
+      `\nCANDIDATES\n${candidateLines.join('\n')}`,
+    ].join('\n'),
+    schema: SELECT_SCHEMA,
+    // ~80 tokens of JSON per outfit plus its rationale, with room for a long one.
+    maxOutputTokens: 200 * count,
+  });
+
+  const parsed = SelectSchema.safeParse(result.data);
+  if (!parsed.success) {
+    console.error('[gemini] selection failed schema', parsed.error.issues);
+    throw appError('AI_UNAVAILABLE');
+  }
+
+  return { ...result, data: { outfits: parsed.data.outfits } };
+}

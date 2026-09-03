@@ -72,7 +72,18 @@ export interface Profile {
   onboarding: Record<string, unknown>;
   /** Module 16 §4's Appearance tab. Server-read, so not localStorage — see 0012. */
   preferences: Preferences;
+  /** Module 19 §7's rollout switches. Absent means "assign me by the default rule". */
+  flags: Flags;
   createdAt: string;
+}
+
+/**
+ * Feature assignment, per user. Deliberately not a display preference: this decides
+ * which engine picks someone's outfits, and module 19 §7 requires it be comparable
+ * across two arms for two weeks before the losing one is deleted.
+ */
+export interface Flags {
+  aiRecommendations?: boolean;
 }
 
 /**

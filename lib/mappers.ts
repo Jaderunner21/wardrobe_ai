@@ -34,6 +34,7 @@ import type {
   WeatherContext,
 } from '@/types';
 import { toPreferences } from '@/lib/format';
+import { toFlags } from '@/lib/flags';
 
 // ───────────────────────────────────────────────────────────── row shapes
 
@@ -52,6 +53,7 @@ export interface ProfileRow {
   cpw_target: number;
   onboarding: Record<string, unknown>;
   preferences: Record<string, unknown>;
+  flags: Record<string, unknown>;
   created_at: string;
 }
 
@@ -254,6 +256,7 @@ export const toProfile = (r: ProfileRow): Profile => ({
   // Parsed rather than trusted: this is jsonb, so the database will hand back whatever
   // was last written to it, including from a version of the app that is not this one.
   preferences: toPreferences(r.preferences),
+  flags: toFlags(r.flags),
   createdAt: r.created_at,
 });
 

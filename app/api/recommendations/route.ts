@@ -9,18 +9,25 @@
  * It never returns an error. Degradation, in order: full scoring with weather → no
  * weather, thermal term dropped and the rest renormalised → relaxed filters → an empty
  * list with a `reason` the UI can render.
+ *
+ * Module 19 swapped the SELECTION half for the model, behind a per-user flag. The route
+ * signature did not change and neither did the schema — `source` already distinguished
+ * 'rules' from 'llm', which is what made the swap a branch here rather than a rewrite.
  */
 import { createHash } from 'node:crypto';
 import { handle, ok } from '@/lib/api';
 import { appError } from '@/lib/errors';
 import { requireUser, createClient } from '@/lib/supabase/server';
 import { recommend, seasonFor, type EngineContext } from '@/lib/recommender';
+import { recommendAI } from '@/lib/recommender/ai';
+import { aiEngineEnabled } from '@/lib/flags';
 import { pairKey } from '@/lib/recommender/score';
 import { cityKeyFor, getWeather } from '@/lib/weather';
 import { publicUrlsFor } from '@/lib/storage';
 import { assertBudget, localDay, recordUsage } from '@/lib/budget';
 import { rerankOutfits } from '@/lib/gemini';
 import { toItem, toStyleProfile, type ItemRow, type StyleProfileRow } from '@/lib/mappers';
+import { toFlags } from '@/lib/flags';
 import { STYLES } from '@/app/api/items/schemas';
 import type { Item, Recommendation, Style, WeatherContext } from '@/types';
 
@@ -44,7 +51,17 @@ const cacheKeyFor = (style: string, bucket: number | null, wardrobeVersion: numb
   createHash('md5').update(`${style}:${bucket ?? 'none'}:${wardrobeVersion}`).digest('hex');
 
 interface CachedPayload {
-  recommendations: { itemIds: string[]; score: number; rationale: string | null }[];
+  recommendations: {
+    itemIds: string[];
+    score: number;
+    rationale: string | null;
+    /**
+     * Per outfit, because module 19's AI arm mixes them: outfits the model chose sit
+     * next to rules-engine outfits that backfilled the ones validation threw out. §7's
+     * comparison is only answerable if each outfit says honestly which engine made it.
+     */
+    source?: 'rules' | 'llm';
+  }[];
   reason: string | null;
   /** Cached alongside the selection so a rerank is not re-bought on every open. */
   source?: 'rules' | 'llm';
@@ -65,7 +82,7 @@ export const GET = handle(async (request: Request) => {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('city, country, timezone, wardrobe_version')
+    .select('city, country, timezone, wardrobe_version, flags')
     .eq('id', user.id)
     .single();
   if (profileError) throw profileError;
@@ -144,7 +161,7 @@ export const GET = handle(async (request: Request) => {
               slots: outfitItems.map((i) => i.slot).filter((s) => s !== null),
               score: r.score,
               rationale: r.rationale,
-              source: cached.source ?? 'rules',
+              source: r.source ?? cached.source ?? 'rules',
             } as Recommendation)
           : null;
       })
@@ -214,7 +231,34 @@ export const GET = handle(async (request: Request) => {
     outfitEligible,
   };
 
-  const result = recommend(ctx);
+  /**
+   * Module 19 §7: the two engines run side by side behind a per-user flag until the
+   * thumbs-up rate says which one to keep. `aiEngineEnabled` buckets deterministically,
+   * so a user stays in one arm rather than re-rolling per request — random assignment
+   * would put the same person in both arms within a session and make both numbers
+   * meaningless.
+   */
+  const useAi = aiEngineEnabled(user.id, toFlags(profile.flags));
+
+  let result = recommend(ctx);
+  let source: 'rules' | 'llm' = 'rules';
+
+  if (useAi) {
+    /**
+     * Selection AND explanation in one call — module 19 §1. The model returns a
+     * rationale per outfit it chose, so the module 11 rerank below is skipped in this
+     * arm: buying a second call to re-explain what the first call already explained is
+     * pure waste.
+     *
+     * No `assertBudget` here — `recommendAI` asserts it around its own call. Doing both
+     * would reserve the day's quota twice for one request, because `reserve_ai_call` is
+     * an atomic reservation rather than a read.
+     */
+    const ai = await recommendAI(ctx);
+    result = { recommendations: ai.recommendations, reason: ai.reason };
+    source = ai.source;
+    if (ai.inTokens > 0) await recordUsage(user.id, 'rerank', ai.inTokens, ai.outTokens);
+  }
 
   /**
    * The premium layer — module 11 §4, §6. One model call per (user, style, day): the
@@ -225,8 +269,7 @@ export const GET = handle(async (request: Request) => {
    * and its mechanical rationale in place. This endpoint never returns an error
    * (module 08 §7), and a paying user's bad afternoon must not become everyone's.
    */
-  let source: 'rules' | 'llm' = 'rules';
-  if (result.recommendations.length > 1) {
+  if (source === 'rules' && result.recommendations.length > 1) {
     try {
       await assertBudget(user.id, 'rerank');
       const reranked = await applyRerank(result.recommendations, ctx);
@@ -248,6 +291,7 @@ export const GET = handle(async (request: Request) => {
       itemIds: r.items.map((i) => i.id),
       score: r.score,
       rationale: r.rationale,
+      source: r.source === 'llm' ? ('llm' as const) : ('rules' as const),
     })),
     reason: result.reason,
     source,

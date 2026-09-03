@@ -136,6 +136,7 @@ export function AdminConsole({ currentUserId }: { currentUserId: string }) {
                 <Th>Items</Th>
                 <Th>City</Th>
                 <Th>Last seen</Th>
+                <Th>Outfits by</Th>
                 <Th>Admin</Th>
                 <Th>{''}</Th>
               </tr>
@@ -166,6 +167,32 @@ export function AdminConsole({ currentUserId }: { currentUserId: string }) {
                     {user.lastSignInAt
                       ? new Date(user.lastSignInAt).toLocaleDateString()
                       : 'never'}
+                  </Td>
+
+                  {/*
+                    Module 19 §7's comparison arm. "auto" is not a third state — it is
+                    the deterministic bucket the user is already in, shown as (auto) so
+                    an operator can tell an assignment they made from one they inherited.
+                  */}
+                  <Td>
+                    <select
+                      value={user.aiEngineSource === 'default' ? 'auto' : user.aiEngine ? 'ai' : 'rules'}
+                      disabled={busyId === user.id}
+                      onChange={(e) =>
+                        patchUser(user.id, {
+                          aiEngine:
+                            e.target.value === 'auto' ? null : e.target.value === 'ai',
+                        })
+                      }
+                      aria-label={`Recommendation engine for ${user.email ?? user.id}`}
+                      className="rounded-[var(--radius)] border border-border bg-bg px-2 py-1 text-meta"
+                    >
+                      <option value="auto">
+                        auto ({user.aiEngine ? 'AI' : 'rules'})
+                      </option>
+                      <option value="ai">AI</option>
+                      <option value="rules">rules</option>
+                    </select>
                   </Td>
 
                   <Td>

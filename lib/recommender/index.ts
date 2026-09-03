@@ -36,6 +36,20 @@ interface FilterOptions {
   seasonFilter: boolean;
 }
 
+/**
+ * The relaxation ladder — module 08 §1's fallback. Returning nothing to a user with
+ * eight items is the worst possible first experience, so the filter loosens rather than
+ * the answer being empty. Module scope because module 19's selector walks the same
+ * rungs; two copies of this list would drift, and the one that drifts is the one that
+ * silently shows the AI a different wardrobe from the rules engine.
+ */
+const LADDERS: FilterOptions[] = [
+  { formalityWindow: 1, seasonFilter: true },
+  { formalityWindow: 2, seasonFilter: true },
+  { formalityWindow: 2, seasonFilter: false },
+  { formalityWindow: 4, seasonFilter: false },
+];
+
 /** Module 08 §1. Everything a candidate must satisfy to be considered at all. */
 export function candidates(ctx: EngineContext, options: FilterOptions): Item[] {
   const target = targetFormality(ctx);
@@ -68,22 +82,30 @@ export function candidates(ctx: EngineContext, options: FilterOptions): Item[] {
 /** Distinct slots present, which is what "can this become an outfit" really asks. */
 const slotCount = (items: Item[]): number => new Set(items.map((i) => i.slot)).size;
 
+/**
+ * The pool module 08's filter leaves, walking the same relaxation ladder `recommend`
+ * uses — module 19 §1: the filter stays, only the selection moves to the model.
+ *
+ * The stopping rule differs from `recommend`'s by one thing, and deliberately.
+ * `recommend` relaxes until `assemble()` actually produces an outfit, because assembly
+ * is its own next step. Here assembly is the model's job, so this stops as soon as the
+ * pool has two slots to work with — asking the beam search whether IT can build
+ * something would rule out exactly the pairings the model was brought in for.
+ */
+export function candidatePool(ctx: EngineContext): Item[] {
+  let pool: Item[] = [];
+
+  for (const options of LADDERS) {
+    pool = candidates(ctx, options);
+    if (slotCount(pool) >= 2) return pool;
+  }
+  return pool;
+}
+
 export function recommend(ctx: EngineContext): EngineResult {
   if (ctx.items.length === 0) {
     return { recommendations: [], reason: 'Add a few items to get outfit suggestions.' };
   }
-
-  /**
-   * The relaxation ladder — module 08 §1 fallback. Returning nothing to a user with
-   * eight items is the worst possible first experience, so the filter loosens rather
-   * than the answer being empty.
-   */
-  const ladders: FilterOptions[] = [
-    { formalityWindow: 1, seasonFilter: true },
-    { formalityWindow: 2, seasonFilter: true },
-    { formalityWindow: 2, seasonFilter: false },
-    { formalityWindow: 4, seasonFilter: false },
-  ];
 
   /**
    * Relax until something is actually wearable, not until the pool merely looks big
@@ -94,7 +116,7 @@ export function recommend(ctx: EngineContext): EngineResult {
   let outfits: Recommendation[] = [];
   let pool: Item[] = [];
 
-  for (const options of ladders) {
+  for (const options of LADDERS) {
     pool = candidates(ctx, options);
     if (slotCount(pool) < 2) continue;
 
