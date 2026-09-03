@@ -7,14 +7,14 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0-L2 code complete, L3 in progress (07, 08, 09, 10)
+## Status — L0-L3 code complete
 
 ```
 L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
 L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓                     ← gate
 L2  Tagging         12 ✓ → 06 ✓                                                  ← gate
-L3  Recommendations 07 ✓ → 08 ✓ → 09 ✓ → 10 ✓ → 16(dashboard)                    ← here
-L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──
+L3  Recommendations 07 ✓ → 08 ✓ → 09 ✓ → 10 ✓ → 16(dashboard, outfits) ✓         ← gate
+L4  AI + polish     11 → 17 → 18 → 16(states, mobile)     ── test run ──          ← next
 L5  AI ENGINE       19
 L6  Production      13 → 14(full) → 15(full)
 ```
@@ -72,7 +72,9 @@ personalisation is real and it is arithmetic, and the second half of that is not
 weakness. Three thumbs-down on the same colour pairing becomes a hard veto, visible and
 clearable under Settings → Style.
 
-The dashboard is still a placeholder naming the module that fills it in. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
+The dashboard closes L3: recently added items, Today's Weather Outfit with the
+forecast as its default and a manual override on top, and Style Insights — most worn
+category, wardrobe diversity, never worn. Every screen in the nav is now real. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
 passed until the migrations are applied and real items go in.
 
 ## Running it

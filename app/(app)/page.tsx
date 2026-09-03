@@ -1,13 +1,160 @@
 /**
- * Dashboard — placeholder until module 16 lands (L3).
+ * Dashboard — module 16 §4.
+ *
+ * Two columns, roughly 2:1. Left: recent items, then Today's Weather Outfit. Right
+ * rail: Style Insights as brand-50 stat tiles.
+ *
+ * This and the planner are the two retention surfaces (module 09 §4) — the reasons to
+ * open the app on a day when you are not adding clothes.
  */
-import { NotBuiltYet, PageHeader } from '@/components/PageHeader';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { PageHeader } from '@/components/PageHeader';
+import { EmptyState } from '@/components/primitives';
+import { ItemImage } from '@/components/ItemImage';
+import { UploadIcon } from '@/components/icons';
+import { TodaysOutfit } from '@/components/dashboard/TodaysOutfit';
+import { createClient, getUser } from '@/lib/supabase/server';
+import { listItems } from '@/lib/items';
+import { styleInsights } from '@/lib/insights';
+import { publicUrlsFor } from '@/lib/storage';
+import { toCategory, type CategoryRow } from '@/lib/mappers';
 
-export default function DashboardPage() {
+export const dynamic = 'force-dynamic';
+
+const RECENT_LIMIT = 8;
+
+const CATEGORY_COLUMNS =
+  'id, user_id, name, slug, icon, default_slot, subtypes, outfit_eligible, sort_order';
+
+export default async function DashboardPage() {
+  const user = await getUser();
+  if (!user) redirect('/login');
+
+  const supabase = await createClient();
+
+  const [{ data: profileRow }, recent, insights, { data: categoryRows }] = await Promise.all([
+    supabase.from('profiles').select('display_name, item_count').eq('id', user.id).single(),
+    listItems(supabase, { sort: 'recent', limit: RECENT_LIMIT }),
+    styleInsights(supabase),
+    supabase.from('categories').select(CATEGORY_COLUMNS).order('sort_order'),
+  ]);
+
+  const urlsByPath = await publicUrlsFor(recent.items.map((i) => i.thumbPath));
+  const categories = ((categoryRows ?? []) as unknown as CategoryRow[]).map(toCategory);
+  const mostWorn = categories.find((c) => c.id === insights.mostWornCategoryId);
+
+  const firstName = profileRow?.display_name?.split(' ')[0];
+
   return (
     <>
-      <PageHeader title="Dashboard" subtitle="Your wardrobe at a glance." />
-      <NotBuiltYet module="module 16" layer="L3" />
+      <PageHeader
+        title={firstName ? `Hello, ${firstName}` : 'Your wardrobe'}
+        subtitle={
+          profileRow?.item_count
+            ? `${profileRow.item_count} item${profileRow.item_count === 1 ? '' : 's'} in rotation`
+            : 'Nothing in it yet.'
+        }
+        action={
+          <Link
+            href="/upload"
+            className="inline-flex items-center gap-2 rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
+          >
+            <UploadIcon size={16} />
+            Add Items
+          </Link>
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <div className="space-y-6">
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-section font-semibold tracking-tight">Recently added</h2>
+              <Link href="/wardrobe" className="text-meta text-brand-700 underline underline-offset-4">
+                See all
+              </Link>
+            </div>
+
+            {recent.items.length === 0 ? (
+              <EmptyState
+                icon={<UploadIcon size={26} />}
+                title="Nothing here yet"
+                line="Photograph a few things you actually wear. Everything else follows from that."
+                action={
+                  <Link
+                    href="/upload"
+                    className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
+                  >
+                    Add your first items
+                  </Link>
+                }
+              />
+            ) : (
+              <ul className="grid grid-cols-4 gap-3 sm:grid-cols-4">
+                {recent.items.map((item) => (
+                  <li key={item.id}>
+                    <Link href={{ pathname: `/wardrobe/${item.id}` }} className="block">
+                      <ItemImage
+                        src={urlsByPath[item.thumbPath]}
+                        alt={item.name ?? 'Wardrobe item'}
+                        width={140}
+                        height={140}
+                        className="aspect-square w-full rounded-[var(--radius)] object-cover"
+                      />
+                      <p className="mt-1 truncate text-chip text-text-mute">
+                        {item.name ?? item.subtype ?? '—'}
+                      </p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <TodaysOutfit />
+        </div>
+
+        <aside className="space-y-4">
+          <h2 className="text-section font-semibold tracking-tight">Style Insights</h2>
+
+          <Tile
+            label="Most Worn Category"
+            value={mostWorn ? `${mostWorn.icon ?? ''} ${mostWorn.name}`.trim() : 'Not yet'}
+            note={
+              insights.mostWornWears > 0
+                ? `${insights.mostWornWears} wear${insights.mostWornWears === 1 ? '' : 's'} logged`
+                : 'Log a wear to see this'
+            }
+          />
+
+          <Tile
+            label="Wardrobe Diversity"
+            value={`${insights.diversityPercent}%`}
+            note={`${insights.categoriesOwned} categor${insights.categoriesOwned === 1 ? 'y' : 'ies'} in your wardrobe`}
+          />
+
+          <Tile
+            label="Never Worn"
+            value={String(insights.neverWorn)}
+            note={
+              insights.neverWorn > 0
+                ? 'Worth a look before buying anything new'
+                : 'Everything has been worn at least once'
+            }
+          />
+        </aside>
+      </div>
     </>
+  );
+}
+
+function Tile({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <section className="rounded-[var(--radius-lg)] bg-brand-50 p-4">
+      <h3 className="text-meta font-semibold uppercase tracking-wide text-text-mute">{label}</h3>
+      <p className="mt-1 text-section font-semibold tracking-tight text-brand-800">{value}</p>
+      <p className="mt-0.5 text-meta text-text-dim">{note}</p>
+    </section>
   );
 }

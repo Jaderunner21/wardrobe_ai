@@ -77,6 +77,27 @@ export const GET = handle(async (request: Request) => {
     weather = await getWeather(cityKeyFor(profile.city, profile.country ?? 'IN'), today);
   }
 
+  /**
+   * The dashboard's weather select is a manual override (module 16 §4): the forecast is
+   * the default, and a person who knows it will be colder than forecast should be able
+   * to say so. Additive to the documented query string.
+   */
+  const bucketOverride = Number(params.get('tempBucket'));
+  if (Number.isInteger(bucketOverride) && bucketOverride >= 0 && bucketOverride <= 4) {
+    weather = weather
+      ? { ...weather, tempBucket: bucketOverride as WeatherContext['tempBucket'] }
+      : {
+          cityKey: 'override',
+          day: today,
+          tempC: [5, 14, 21, 27, 34][bucketOverride] ?? 27,
+          tempMinC: [2, 11, 18, 24, 30][bucketOverride] ?? 24,
+          tempMaxC: [9, 17, 23, 29, 38][bucketOverride] ?? 29,
+          tempBucket: bucketOverride as WeatherContext['tempBucket'],
+          precipitationMm: 0,
+          condition: 'As you set it',
+        };
+  }
+
   const cacheKey = cacheKeyFor(style, weather?.tempBucket ?? null, profile.wardrobe_version ?? 0);
 
   const [itemsRes, styleRes, categoriesRes, seenRes, cacheRes] = await Promise.all([
