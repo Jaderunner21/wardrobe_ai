@@ -18,6 +18,15 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key-placeholder-value',
+      /**
+       * Pinned, because `limitFor(plan, kind, phase = process.env.PHASE)` uses a DEFAULT
+       * PARAMETER — and a default parameter fires on an explicit `undefined`. The budget
+       * tests pass `undefined` meaning "no phase set" and were in fact reading whatever
+       * the developer's shell had, so `PHASE=test` in a sourced .env.local made two of
+       * them fail with no code change. Empty string is not 'test', so production caps
+       * apply, deterministically and whatever the shell holds.
+       */
+      PHASE: '',
     },
   },
 });

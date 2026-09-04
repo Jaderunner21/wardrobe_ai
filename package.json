@@ -20,7 +20,8 @@
     "check:schema": "bash scripts/check-schema-drift.sh",
     "check:tagschema": "bash scripts/check-tag-schema.sh",
     "check:downgrade": "bash scripts/check-downgrade.sh",
-    "check:events": "bash scripts/check-events.sh"
+    "check:events": "bash scripts/check-events.sh",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:selectstar && pnpm check:budget && pnpm check:storage && pnpm check:tagschema && pnpm check:events"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.73.0",

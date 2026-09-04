@@ -7,22 +7,28 @@ The specification lives in [`wardrobe-ai-spec/`](wardrobe-ai-spec/README.md) and
 authority for data model and behaviour. This README covers only how to run what is
 built.
 
-## Status — L0-L3 code complete, L4 started (module 11 rerank)
+## Status — every module built
 
 ```
-L0  Foundation      01 → 02 → 03 → 16(tokens+shell) → 15(deploy pipeline, env)   ✓
-L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓                     ← gate
-L2  Tagging         12 ✓ → 06 ✓                                                  ← gate
-L3  Recommendations 07 ✓ → 08 ✓ → 09 ✓ → 10 ✓ → 16(dashboard, outfits) ✓         ← gate
-L4  AI + polish     11 ✓(rerank) → 17 → 18 → 16(states, mobile)  ── test run ──   ← here
-L5  AI ENGINE       19
-L6  Production      13 → 14(full) → 15(full)
+L0  Foundation      01 ✓ → 02 ✓ → 03 ✓ → 16(tokens+shell) ✓ → 15(pipeline, env) ✓
+L1  Wardrobe core   04 ✓ → 05 ✓ → 16(wardrobe, upload, bin) ✓
+L2  Tagging         12 ✓ → 06 ✓
+L3  Recommendations 07 ✓ → 08 ✓ → 09 ✓ → 10 ✓ → 16(dashboard, outfits) ✓
+L4  AI + polish     11 ✓(rerank) → 17 ✓ → 18 ✓ → 16(states, mobile) ✓
+L5  AI ENGINE       19 ✓
+L6  Production      13 ✓ → 14 ✓ → 15 ✓
 ```
 
-What exists: the six migrations, all three Supabase clients, session middleware and
-route protection, email-OTP and Google sign-in, the design tokens with a working dark
-mode, the shell (desktop top bar + mobile tab bar), account export and deletion,
-`/api/health`, and CI with all eight gates. Module 04 adds a ninth: the storage boundary.
+Module 11's chat half is deferred to production (module 16 §7.4): there is no chat
+screen in eighteen prototype screenshots, and it is the expensive half. The rerank half
+shipped.
+
+Sixteen migrations, `0001` through `0016`. Apply them in filename order.
+
+What exists: all three Supabase clients, session middleware and route protection,
+email-OTP and Google sign-in, the design tokens with a working dark mode, the shell
+(desktop top bar + mobile tab bar), account export and deletion, `/api/health`, and CI
+with the spec's eight gates plus five more added since.
 
 Module 04 adds the media pipeline: client-side WebP compression with EXIF stripped,
 sha-256 dedupe hashing, `POST /api/items/presign`, direct-to-storage signed uploads at
@@ -41,7 +47,7 @@ reservation in Postgres before any model call goes out, token accounting after i
 returns, and today's usage on the settings screen. Nothing calls a model yet — the
 guard is in place first, on purpose.
 
-Module 06 adds tagging: `gemini-2.5-flash-lite` behind a strict response schema that
+Module 06 adds tagging: `gemini-3.5-flash-lite` behind a strict response schema that
 is Zod-parsed anyway, two retries with backoff, the full response kept in `ai_raw`, and
 per-card confidence badges on the Review & Edit screen. Tagging runs at concurrency 2
 so cards fill in while you are still reading the first one. Every failure mode —
@@ -81,8 +87,31 @@ outfits the rules engine already validated into a ranked five with a sentence wo
 reading. It cannot invent a garment, because it only ever picks among outfits built
 from the wardrobe. Every failure — free plan, spent budget, model outage, unparseable
 response — silently keeps the rules order and its mechanical rationale. Chat is
-deferred; see below. L1's gate is "your own wardrobe lives in it" — that needs a database, so it is not
-passed until the migrations are applied and real items go in.
+deferred; see below.
+
+Module 17 adds cost per wear, framed as progress toward a target the user set and never
+as a verdict on a purchase. Module 18 adds wear and tear — a condition log that is a
+time series, built now because it cannot be retrofitted: "this jacket started failing at
+20 wears" only exists if condition was recorded at 5, 10 and 20. It pays off as retailer
+durability, the user's own record of where their clothes last.
+
+Module 16's polish pass closes L4: loading skeletons, an error boundary with a working
+retry, a 404, the quota screen, custom categories, and the Appearance settings that were
+promised with nothing behind them.
+
+Module 19 swaps garment SELECTION to the model and keeps module 08 as the fallback. The
+model returns ids and every one is checked against the candidate set it was sent — an
+outfit naming a garment the user does not own is discarded, never repaired. It runs
+behind a per-user flag so the two engines can be compared on thumbs-up rate before
+either is deleted.
+
+Module 13 adds billing: a signature-verified Razorpay webhook that is the only writer of
+`profiles.plan`, and a downgrade that archives the excess and deletes nothing. It is
+dormant — no keys, no checkout, no caps — and stays that way until you decide to charge.
+
+Module 14 adds observability: one events table, a scrubber that keeps image URLs and
+free text out of it, Sentry with the same rules, and four queries in `docs/queries.sql`.
+No dashboard, deliberately.
 
 ## Running it
 
@@ -94,9 +123,13 @@ cp .env.local.example .env.local   # fill in the three Supabase values
 pnpm dev
 ```
 
-Apply `supabase/migrations/*.sql` to the project in filename order, 0001 through
-0006. Every one is idempotent-safe to run once and only once, in order — 0002 depends
-on 0001's tables, 0003 on 0002's, and so on.
+Apply `supabase/migrations/*.sql` in filename order, 0001 through 0016:
+
+```bash
+pnpm supabase db push
+```
+
+Each runs once, in order — 0002 depends on 0001's tables, 0003 on 0002's, and so on.
 
 `supabase/config.toml` and `supabase/seed.sql` exist for the CLI. Neither is required
 for the cloud path; the seed is the test-phase `plan = 'premium'` update from module
@@ -108,18 +141,29 @@ behaviour, not a bug.
 ## Checks
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm test
+pnpm check                     # typecheck, lint, tests, and every offline guard
+```
+
+Individually:
+
+```bash
 pnpm check:selectstar          # no select('*') anywhere
 pnpm check:budget              # every Gemini call site calls assertBudget
 pnpm check:storage             # only lib/storage*.ts knows the storage provider
+pnpm check:tagschema           # the tagger fills no user-entered field
+pnpm check:events              # every event name has exactly one emitter
+pnpm check:schema              # every column the code selects exists on the database
 SUPABASE_DB_URL=… pnpm check:rls
+SUPABASE_DB_URL=… pnpm check:downgrade
 pnpm build && pnpm check:leak  # no server secret in .next/static
 ```
 
-CI runs all of these on every PR and fails the build rather than warning. Four of them
-guard failures that are invisible in code review: a table without RLS is a data
-breach, a `select('*')` is egress, an unguarded model call is a bill, and a leaked
-service-role key is everything at once.
+CI runs all of these on every PR and fails the build rather than warning. Each guards a
+failure that is invisible in code review: a table without RLS is a data breach, a
+`select('*')` is egress, an unguarded model call is a bill, a leaked service-role key is
+everything at once, a tagger that guesses at condition corrupts the retailer signal
+silently, an event name with no emitter reads as "nobody did that", and a column the
+database does not have is a 500 that typecheck, lint, tests and build all pass through.
 
 ## Layout
 
