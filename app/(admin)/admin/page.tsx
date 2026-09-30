@@ -34,7 +34,7 @@ export default async function AdminPage() {
         <div>
           <h1 className="text-[32px] font-semibold leading-tight tracking-tight">Admin</h1>
           <p className="mt-1 text-body text-text-dim">
-            Plans, entitlements, and who is in the wardrobe.
+            Everyone in the wardrobe, what they are doing, and what each plan includes.
           </p>
         </div>
         <Link

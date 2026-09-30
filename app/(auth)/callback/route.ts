@@ -3,6 +3,7 @@
  *
  *   OAuth and PKCE magic links arrive with `?code=`
  *   Email OTP links arrive with `?token_hash=&type=`
+ *   The password form arrives with neither — it already has a session
  *
  * Either way: establish the session, then return the user to the path they were
  * trying to reach before being bounced to /login.
@@ -44,6 +45,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(next, origin));
     }
     return failed(origin, error.message);
+  }
+
+  /**
+   * No code and no token_hash. That is the password form, which established the session
+   * in the browser and sent the user here so the SERVER sees the cookie — and so that
+   * `signup` is still emitted from exactly one file whichever way someone got in
+   * (module 14's acceptance).
+   */
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    await trackSignupOnce();
+    return NextResponse.redirect(new URL(next, origin));
   }
 
   return failed(origin, 'That sign-in link is incomplete.');

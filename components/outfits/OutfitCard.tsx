@@ -102,7 +102,7 @@ export function OutfitCard({
         {outfit.score != null && (
           // The engine's raw scores sit in 0.70-0.85; this is the display mapping from
           // module 16 §7.5, not a retuned weight.
-          <span className="shrink-0 rounded-full bg-brand-600 px-2.5 py-1 text-chip font-medium text-white">
+          <span className="shrink-0 rounded-full bg-brand-600 px-2.5 py-1 text-chip font-medium text-on-brand">
             {matchPercent(outfit.score)}% Match
           </span>
         )}
@@ -133,7 +133,7 @@ export function OutfitCard({
                 is unavailable this reads as the rules engine's mechanical line instead,
                 with no badge and no explanation owed. */}
             {outfit.source === 'llm' && (
-              <span className="rounded-full bg-brand-600 px-2 py-0.5 text-chip font-medium normal-case tracking-normal text-white">
+              <span className="rounded-full bg-brand-600 px-2 py-0.5 text-chip font-medium normal-case tracking-normal text-on-brand">
                 Styled for you
               </span>
             )}
@@ -186,7 +186,7 @@ export function OutfitCard({
             type="button"
             onClick={onSave}
             disabled={saving}
-            className="rounded-[var(--radius)] bg-brand-500 px-3 py-1.5 text-meta font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+            className="rounded-[var(--radius)] bg-brand-500 px-3 py-1.5 text-meta font-medium text-on-brand hover:bg-brand-600 disabled:opacity-60"
           >
             {saving ? 'Saving…' : 'Save outfit'}
           </button>

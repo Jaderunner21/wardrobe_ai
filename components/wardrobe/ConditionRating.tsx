@@ -39,7 +39,7 @@ export function ConditionRating({
             className={[
               'rounded-full px-3 py-1.5 text-chip font-medium transition-colors disabled:opacity-60',
               selected
-                ? 'bg-brand-500 text-white'
+                ? 'bg-brand-500 text-on-brand'
                 : 'bg-bg text-text-dim hover:bg-brand-50 hover:text-brand-700',
             ].join(' ')}
           >

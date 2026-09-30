@@ -77,3 +77,19 @@ export const ImageOffIcon = ({ size = 20, className }: IconProps) => (
     <circle cx="15" cy="9" r="1.4" />
   </svg>
 );
+
+export const CalendarIcon = ({ size = 20, className }: IconProps) => (
+  <svg {...base(size, className)}>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+    <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" />
+  </svg>
+);
+
+export const GridIcon = ({ size = 20, className }: IconProps) => (
+  <svg {...base(size, className)}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.6" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" />
+  </svg>
+);

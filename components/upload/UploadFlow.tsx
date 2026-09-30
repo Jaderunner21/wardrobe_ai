@@ -260,7 +260,7 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
         <div className="mt-6 flex justify-center gap-3">
           <Link
             href="/wardrobe"
-            className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
+            className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600"
           >
             See my wardrobe
           </Link>
@@ -303,7 +303,7 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            className="mt-6 rounded-[var(--radius)] bg-brand-500 px-5 py-2.5 text-body font-medium text-white hover:bg-brand-600"
+            className="mt-6 rounded-[var(--radius)] bg-brand-500 px-5 py-2.5 text-body font-medium text-on-brand hover:bg-brand-600"
           >
             Choose Photos
           </button>
@@ -378,7 +378,7 @@ export function UploadFlow({ categories }: { categories: Category[] }) {
                 type="button"
                 onClick={saveAll}
                 disabled={saving || drafts.length === 0}
-                className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+                className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600 disabled:opacity-60"
               >
                 {saving ? 'Saving…' : `Save All to Wardrobe (${drafts.length})`}
               </button>

@@ -5,15 +5,17 @@
  * and exactly. Hand-rolled cookie handling in this stack produces sessions that work
  * locally and expire unpredictably in production.
  *
- * Two rules only:
+ * Three rules only:
  *   1. refresh the session cookie on every request
- *   2. send signed-out users to /login, remembering where they were going
+ *   2. signed-out visitors to `/` see the landing page; anywhere else private sends them
+ *      to /login, remembering where they were going
+ *   3. signed-in users skip the landing page and the sign-in form
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 /** Reachable without a session. Everything else in the app is not. */
-const PUBLIC_PATHS = ['/login', '/callback', '/auth', '/api/health'];
+const PUBLIC_PATHS = ['/login', '/callback', '/welcome', '/credits', '/api/health', '/api/auth'];
 
 const isPublic = (pathname: string) =>
   PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -46,6 +48,15 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, search } = request.nextUrl;
 
+  if (!user && pathname === '/') {
+    // Same URL, landing page content: `/` is the product's front door either way.
+    const url = request.nextUrl.clone();
+    url.pathname = '/welcome';
+    const rewrite = NextResponse.rewrite(url);
+    for (const cookie of response.cookies.getAll()) rewrite.cookies.set(cookie);
+    return rewrite;
+  }
+
   if (!user && !isPublic(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
@@ -55,7 +66,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === '/login') {
+  if (user && (pathname === '/login' || pathname === '/welcome')) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     url.search = '';

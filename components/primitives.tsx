@@ -16,7 +16,7 @@ export function CategoryPill({ name, icon }: { name: string; icon?: string | nul
 
 export function TagChip({ label, more }: { label: string; more?: number }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/85 px-2 py-0.5 text-chip font-medium text-white backdrop-blur-sm">
+    <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/85 px-2 py-0.5 text-chip font-medium text-on-brand backdrop-blur-sm">
       <span aria-hidden>#</span>
       {label}
       {more ? <span className="opacity-80">+{more}</span> : null}

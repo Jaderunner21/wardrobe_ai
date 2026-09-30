@@ -110,7 +110,7 @@ export function Recommendations() {
           type="button"
           onClick={() => generate(false)}
           disabled={loading}
-          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600 disabled:opacity-60"
         >
           {loading ? 'Thinking…' : 'Generate Outfit Recommendation'}
         </button>

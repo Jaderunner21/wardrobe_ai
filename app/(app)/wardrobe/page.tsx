@@ -102,7 +102,7 @@ export default async function WardrobePage({ searchParams }: { searchParams: Sea
         action={
           <Link
             href="/upload"
-            className="inline-flex items-center gap-2 rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white transition-colors hover:bg-brand-600"
+            className="inline-flex items-center gap-2 rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand transition-colors hover:bg-brand-600"
           >
             <UploadIcon size={16} />
             Add Items
@@ -179,7 +179,7 @@ export default async function WardrobePage({ searchParams }: { searchParams: Sea
                 action={
                   <Link
                     href="/upload"
-                    className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
+                    className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600"
                   >
                     Add your first items
                   </Link>

@@ -5,10 +5,9 @@
  * the browser knows. That is the same rule §1 states for writes, applied to reads: the
  * client does not get to have an opinion about which plan it is on.
  *
- * During the test phase everyone is premium and every feature is on every plan, so this
- * says so plainly instead of showing an upgrade button that would do nothing. A paywall
- * that cannot take money is worse than no paywall — it advertises a thing you cannot
- * buy, and the first person to try reports it as a bug.
+ * Until billing is switched on every feature is on every plan, so this says so plainly
+ * instead of showing an upgrade button that would do nothing. A paywall that cannot take
+ * money is worse than no paywall — it advertises a thing you cannot buy.
  */
 import { formatDate } from '@/lib/format';
 import type { DateFormat, Plan } from '@/types';
@@ -50,12 +49,7 @@ export function PlanPanel({
       </p>
 
       {!billingEnabled && (
-        // Said out loud rather than hidden. Someone reading this screen should be able
-        // to tell the difference between "free forever" and "not charging yet".
-        <p className="mt-3 text-meta text-text-mute">
-          Subscriptions are not switched on yet — nothing is being charged, and nothing is
-          limited.
-        </p>
+        <p className="mt-3 text-meta text-text-mute">Every feature is included, free.</p>
       )}
     </section>
   );

@@ -29,14 +29,29 @@ enable_signup = true
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
-enable_confirmations = true
 
-# Resend SMTP. Supabase's built-in sender is capped at 2 emails/hour project-wide,
-# and every sign-in here is an email because there are no passwords (module 03 §1).
+# TEST PHASE: off, so sign-up sends no email and completes immediately.
 #
-# This block configures the LOCAL CLI stack only. The hosted project is configured in
-# the dashboard under Project Settings > Authentication > SMTP Settings, and the API
-# key lives there — never in this repo. See docs/email-smtp.md.
+# Supabase's built-in sender is capped at 2 emails per hour PROJECT-WIDE. With
+# confirmations on, the third tester to sign up in any hour gets
+# `over_email_send_rate_limit` and simply cannot get in — which is what happened. The
+# limit is on email, not on sign-ins, so the fix is to send none: the login screen is a
+# password form (app/(auth)/login/page.tsx) and any address works because nothing is
+# delivered to it.
+#
+# Turn this back on when custom SMTP is configured (docs/email-smtp.md) and before real
+# users exist — an unconfirmed address means someone can sign up as an address they do
+# not own, which is acceptable for fifteen known testers and not beyond that.
+#
+# NOTE: this file configures the LOCAL CLI stack. The HOSTED project has its own copy of
+# this setting and `supabase config push` is NOT the way to sync it — pushing this file
+# would also set the hosted site_url to localhost:3000, disable Google, and point SMTP at
+# an unset key. Change it in the dashboard: Authentication > Providers > Email.
+enable_confirmations = false
+
+# Resend SMTP — parked. Configured for the LOCAL stack only; the hosted project's SMTP
+# lives in the dashboard under Project Settings > Authentication, and the API key lives
+# there rather than in this repo. See docs/email-smtp.md.
 [auth.email.smtp]
 enabled = true
 host = "smtp.resend.com"

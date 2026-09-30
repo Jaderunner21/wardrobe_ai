@@ -1,10 +1,11 @@
 /**
  * Service-role client — BYPASSES RLS ENTIRELY (module 03).
  *
- * Used in exactly three places in the whole codebase:
+ * Used in exactly four places in the whole codebase:
  *   1. account deletion            (app/api/account/route.ts)
  *   2. the Razorpay webhook        (module 13, PROD)
  *   3. the cron worker             (PROD)
+ *   4. confirmed sign-up           (app/api/auth/signup/route.ts — no email is sent)
  *
  * If you reach for it anywhere else, the answer is that RLS is misconfigured.
  */

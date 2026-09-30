@@ -7,7 +7,7 @@ structural changes between the two scale targets — this is the whole list.
 |---|---|---|---|---|
 | 1 | Gemini | free tier | pay-as-you-go | env change + billing alert on the Google Cloud project |
 | 2 | Testers | seeded `premium` | real plan enforcement | one `UPDATE profiles SET plan = 'free'`, **and set `plan_features.item_cap`** — it is `null` on both plans today, which is what keeps every feature on every plan (module 13) |
-| 3 | `PHASE=test` | set | unset | restores production AI caps (module 12) |
+| 3 | ~~`PHASE=test`~~ | — | — | removed; caps now come from `plan_features` only |
 | 4 | `pg_cron` jobs | commented in `0001_init.sql`, `0002`, `0003` | live | uncomment in a new migration |
 | 5 | `ai_jobs` retry lane | off | on | module 06 §4 |
 | 6 | Cloudflare WAF | none | 20 req/min/IP on `/api/ai/*` | the one free rule |

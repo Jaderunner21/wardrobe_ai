@@ -94,3 +94,53 @@ export const dateFormatOf = (preferences: Preferences | undefined): DateFormat =
 
 export const defaultSortOf = (preferences: Preferences | undefined): ItemSort =>
   preferences?.defaultSort ?? DEFAULT_SORT;
+
+/**
+ * "Good afternoon." — the dashboard greeting, and the date line above it.
+ *
+ * Both take the hour and the date as arguments rather than reading a clock, because
+ * this renders on a SERVER in whatever region Vercel chose. A greeting computed from
+ * the server's clock tells someone in Udaipur "good morning" at nine in the evening,
+ * which is the kind of small wrongness that makes a product feel like it was not built
+ * for you.
+ */
+export function greetingFor(hour: number): string {
+  if (hour < 5) return 'Good evening';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/** The hour of the day in a given IANA zone, 0-23. */
+export function hourIn(timezone: string, now: Date = new Date()): number {
+  try {
+    return Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: timezone,
+        hour: 'numeric',
+        hour12: false,
+      }).format(now),
+    );
+  } catch {
+    // An unknown zone should not take the dashboard down over a greeting.
+    return now.getHours();
+  }
+}
+
+/** "Tuesday, 8 September" — the quiet line above the greeting. */
+export function longDateIn(timezone: string, now: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).format(now);
+  } catch {
+    return new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).format(now);
+  }
+}

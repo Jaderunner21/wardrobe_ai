@@ -60,7 +60,7 @@ export default function Error({
         <button
           type="button"
           onClick={reset}
-          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
+          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600"
         >
           Try again
         </button>

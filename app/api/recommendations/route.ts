@@ -103,7 +103,10 @@ export const GET = handle(async (request: Request) => {
    * the default, and a person who knows it will be colder than forecast should be able
    * to say so. Additive to the documented query string.
    */
-  const bucketOverride = Number(params.get('tempBucket'));
+  // Only when the parameter is actually present: Number(null) is 0, and reading an
+  // absent parameter as 0 turned every normal request into a manual "Cold" override.
+  const rawOverride = params.get('tempBucket');
+  const bucketOverride = rawOverride === null || rawOverride === '' ? NaN : Number(rawOverride);
   if (Number.isInteger(bucketOverride) && bucketOverride >= 0 && bucketOverride <= 4) {
     weather = weather
       ? { ...weather, tempBucket: bucketOverride as WeatherContext['tempBucket'] }

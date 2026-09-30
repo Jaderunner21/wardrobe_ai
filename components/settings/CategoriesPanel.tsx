@@ -197,7 +197,7 @@ export function CategoriesPanel({ categories }: { categories: Category[] }) {
               type="button"
               onClick={create}
               disabled={busy || name.trim() === ''}
-              className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+              className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600 disabled:opacity-60"
             >
               {busy ? 'Adding…' : 'Add category'}
             </button>

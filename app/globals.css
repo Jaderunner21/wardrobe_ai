@@ -3,81 +3,137 @@
 /*
  * Design tokens — module 16 §1.
  *
- * Sampled from the working prototype's actual pixels, not eyeballed. The brand green
- * is consistent across the logo tile, primary buttons and the active sidebar row at
- * #85a064.
+ * NO LITERAL HEX OUTSIDE THIS FILE. That rule is what made this retheme a token swap
+ * rather than a redesign: the palette moved from sage green on white to warm cream and
+ * near-black without a single component file changing.
  *
- * NO LITERAL HEX OUTSIDE THIS FILE. Dark mode is a token swap, not a redesign — the
- * settings screen already promises the toggle, and a hardcoded colour anywhere else
- * breaks that promise silently.
+ * ── HOW THE BRAND RAMP IS ACTUALLY USED ─────────────────────────────────────────────
+ * It is not a lightness scale, and reading it as one will mislead you. Each step has
+ * exactly one job, taken from how the components use it:
+ *
+ *   50   background only  — subtle panels, hover on ghost buttons
+ *   100  background only  — pills, chips, the active nav row
+ *   300  borders          — and the one placeholder-icon foreground
+ *   500  PRIMARY fill     — buttons, the logo tile, active states
+ *   600  primary hover    — LIGHTER than 500, deliberately: the primary is already
+ *                           near-black, so hover cannot darken and has to lift instead
+ *   700  accent TEXT      — links and emphasis on a light background
+ *   800  TEXT on 100      — needs more contrast against champagne than 700 has
  */
 
 :root {
-  /* brand — sage green */
-  --brand-50: #f4f8f2; /* insight tiles, subtle panels */
-  --brand-100: #e8f0e0; /* category pills, active nav pill, chips */
-  --brand-200: #d3e0c6;
-  --brand-300: #b8c6a9; /* borders on brand surfaces */
-  --brand-400: #9bb37e;
-  --brand-500: #85a064; /* PRIMARY — buttons, logo, active states */
-  --brand-600: #759353; /* hover, match badge */
-  --brand-700: #5f7a42;
-  --brand-800: #4a6033;
+  /*
+   * Warm neutral ramp. The primary is near-black rather than a colour; the character
+   * comes from the cream ground and the champagne accent, not from a hue.
+   */
+  --brand-50: #f7f1ea; /* insight tiles, subtle panels */
+  --brand-100: #eee0c7; /* category pills, active nav pill, chips */
+  --brand-200: #e2d1b4;
+  --brand-300: #ded6d0; /* borders on brand surfaces */
+  --brand-400: #a89c90;
+  --brand-500: #17130f; /* PRIMARY — buttons, logo, active states */
+  --brand-600: #332b24; /* hover; lifts rather than darkens (see above) */
+  --brand-700: #4a3f36; /* accent text on a light ground */
+  --brand-800: #2a231d; /* text on a champagne chip */
+  /*
+   * What goes ON a brand-500 fill. It cannot be `text-white`: brand-500 is near-black
+   * in the light theme and champagne in the dark one, so a hardcoded white label is
+   * unreadable in exactly one of them — and it is the primary button, so that is the
+   * one control you cannot afford to lose.
+   */
+  --on-brand: #fbf8f6;
 
-  /* neutrals */
-  --bg: #fafafa; /* page */
+  /*
+   * The navigation rail. Deliberately NOT part of the themed palette: it holds the
+   * same values in light and dark, because the rail is the app's frame rather than
+   * part of its page, and a frame that changes colour with the content stops being a
+   * frame. Declared here rather than inline in NavBar so the no-literal-hex rule holds
+   * for the one surface most tempted to break it.
+   */
+  --rail: #17130f;
+  --rail-line: #2b2520;
+  --rail-hover: #221d18;
+  --rail-active: #2f2820;
+  --rail-text: #a99e94; /* resting label */
+  --rail-strong: #ffffff; /* active label, wordmark */
+  --rail-muted: #8c8279; /* the email under your name */
+
+  /* neutrals — warm, not grey. The cream is what reads as expensive. */
+  --bg: #fbf8f6; /* page */
   --surface: #ffffff; /* cards, nav bar */
-  --border: #e7e7e5;
-  --text: #171717;
-  --text-dim: #57534e;
-  --text-mute: #8a8a85;
+  --border: #ded6d0;
+  --text: #17130f;
+  --text-dim: #665f59;
+  --text-mute: #8c837b;
 
   /* semantic */
-  --danger-50: #fee2e2; /* danger panel background */
-  --danger-300: #e38a8a; /* danger button */
-  --danger-600: #dc2626; /* danger text, trash icon */
-  --favourite: #ef4444; /* filled heart */
+  --danger-50: #f8e5e0; /* danger panel background */
+  --danger-300: #cf8f80; /* danger button */
+  --danger-600: #b3402a; /* danger text, trash icon */
+  --favourite: #c2452f; /* filled heart */
 
   --radius-sm: 8px;
-  --radius: 12px; /* cards, inputs, buttons */
+  --radius: 10px; /* cards, inputs, buttons */
   --radius-lg: 16px; /* panels */
 
+  /* Softer and warmer than a neutral drop shadow; cards should sit, not float. */
   --shadow-card:
-    0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+    0 1px 2px rgb(23 19 15 / 0.05), 0 1px 3px rgb(23 19 15 / 0.04);
 
-  /* --font-jakarta is set by next/font in app/layout.tsx */
-  --font-sans:
+  /*
+   * Set by next/font in app/layout.tsx.
+   *
+   * The `-stack` suffix is load-bearing. `@theme inline` emits its variables onto
+   * :root too, so declaring `--font-sans: var(--font-sans)` there was a circular
+   * reference — the property computed to EMPTY and every surface silently fell back to
+   * the system font. Plus Jakarta had not rendered once since L0, and nothing caught it
+   * because the page still looked fine, just not like the design. Distinct names on the
+   * two sides of the mapping is what makes the indirection legal.
+   */
+  --font-sans-stack:
     var(--font-jakarta), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
     'Segoe UI', sans-serif;
+
+  /*
+   * Headings only. A display serif against a workhorse sans is most of what separates
+   * "premium" from "a dashboard" — and it costs one font file because it is never used
+   * below the section heading.
+   */
+  --font-display-stack:
+    var(--font-playfair), 'Playfair Display', Georgia, 'Times New Roman', serif;
 }
 
 /*
  * Dark palette. Same variable names, different values — nothing downstream changes.
- * The brand ramp is lifted and desaturated slightly so brand-500 stays legible as a
- * button fill against a dark surface.
+ *
+ * Warm throughout, like the light theme: a neutral-grey dark mode next to a cream light
+ * mode reads as two different products. The primary inverts, because a near-black fill
+ * is invisible on a near-black page — so in the dark the champagne becomes the button
+ * and the near-black becomes the text on it.
  */
 :root[data-theme='dark'] {
-  --brand-50: #1b2318;
-  --brand-100: #24301f;
-  --brand-200: #33452b;
-  --brand-300: #4a6033;
-  --brand-400: #6b8449;
-  --brand-500: #8fac6e;
-  --brand-600: #a3bd85;
-  --brand-700: #c2d5aa;
-  --brand-800: #dcead0;
+  --brand-50: #201b16;
+  --brand-100: #2c251e;
+  --brand-200: #3a3128;
+  --brand-300: #4a3f36;
+  --brand-400: #8a7c6c;
+  --brand-500: #eee0c7; /* PRIMARY — champagne fill, dark text on top */
+  --brand-600: #dccdaf; /* hover, darkens here because the fill is light */
+  --brand-700: #e7d8bd; /* accent text on the dark ground */
+  --brand-800: #f2e7d2;
+  --on-brand: #17130f; /* inverts with the fill above */
 
-  --bg: #121311;
-  --surface: #1b1c1a;
-  --border: #2e302c;
-  --text: #f2f2f0;
-  --text-dim: #b9b8b3;
-  --text-mute: #86867f;
+  --bg: #141110;
+  --surface: #1e1a17;
+  --border: #322c26;
+  --text: #f6f1ea;
+  --text-dim: #c0b6aa;
+  --text-mute: #8c8279;
 
-  --danger-50: #3a1a1a;
-  --danger-300: #b45f5f;
-  --danger-600: #f87171;
-  --favourite: #f87171;
+  --danger-50: #3a1f19;
+  --danger-300: #b4685a;
+  --danger-600: #e8907d;
+  --favourite: #e8907d;
 
   --shadow-card:
     0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.4);
@@ -100,6 +156,15 @@
   --color-brand-600: var(--brand-600);
   --color-brand-700: var(--brand-700);
   --color-brand-800: var(--brand-800);
+  --color-on-brand: var(--on-brand);
+
+  --color-rail: var(--rail);
+  --color-rail-line: var(--rail-line);
+  --color-rail-hover: var(--rail-hover);
+  --color-rail-active: var(--rail-active);
+  --color-rail-text: var(--rail-text);
+  --color-rail-strong: var(--rail-strong);
+  --color-rail-muted: var(--rail-muted);
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -119,7 +184,14 @@
 
   --shadow-card: var(--shadow-card);
 
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-sans-stack);
+  --font-display: var(--font-display-stack);
+  /*
+   * Tailwind ships `font-serif` as ui-serif/Georgia. The landing page uses that
+   * utility throughout, so pointing it at the same face is what stops the product
+   * having two different serifs depending on which screen you are on.
+   */
+  --font-serif: var(--font-display-stack);
 
   /* Type scale — module 16 §1 */
   --text-chip: 12px;
@@ -155,6 +227,23 @@
     font-size: var(--text-body);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+  }
+
+  /*
+   * The display serif, applied to the elements rather than to a utility class.
+   *
+   * h1 ONLY, and that is the whole idea: one serif line per screen. Extending it to h2
+   * put a display face on every section heading — "Recently added", "Today's Weather
+   * Outfit" — and three serif headings on one page is not three times as elegant, it is
+   * noise. A page that wants a second one opts in with `font-display` and has to mean
+   * it.
+   */
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    /* Playfair sets wide by default; pulling it in is what makes a title look set
+       rather than typed. */
+    letter-spacing: -0.02em;
   }
 
   ::selection {

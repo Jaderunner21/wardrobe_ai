@@ -86,7 +86,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           type="button"
           onClick={save}
           disabled={saving || !dirty}
-          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600 disabled:opacity-60"
+          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600 disabled:opacity-60"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>

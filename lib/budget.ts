@@ -13,20 +13,15 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { appError } from '@/lib/errors';
-import { AI_LIMITS, AI_LIMITS_TEST, type AiCallKind, type AiUsage, type Plan } from '@/types';
+import { AI_LIMITS, type AiCallKind, type AiUsage, type Plan } from '@/types';
 import { track } from '@/lib/events';
 
 /**
  * The compile-time fallback. `plan_features` (0010) is the real source of truth, so an
  * operator can change what a plan includes without a deploy; this is what answers when
  * that table cannot be read — a DB blip must not silently hand out unlimited AI.
- *
- * Test phase raises the caps so testers are not throttled while giving feedback, but
- * they stay finite: a tester with a broken client bills you exactly as hard as an
- * attacker would (module 12 §6).
  */
-export const limitFor = (plan: Plan, kind: AiCallKind, phase = process.env.PHASE): number =>
-  (phase === 'test' ? AI_LIMITS_TEST : AI_LIMITS)[plan][kind];
+export const limitFor = (plan: Plan, kind: AiCallKind): number => AI_LIMITS[plan][kind];
 
 const COLUMN: Record<AiCallKind, 'tag_limit' | 'chat_limit' | 'rerank_limit'> = {
   tag: 'tag_limit',

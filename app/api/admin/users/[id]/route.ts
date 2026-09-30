@@ -1,6 +1,7 @@
 /**
- * PATCH  /api/admin/users/[id] — change a plan, grant/revoke admin, or move a user
- *                                 between module 19 §7's recommendation arms
+ * PATCH  /api/admin/users/[id] — change a plan, grant/revoke admin, move a user between
+ *                                 module 19 §7's recommendation arms, rename, change
+ *                                 city, set a new password, or ban / unban
  * DELETE /api/admin/users/[id] — remove someone from the wardrobe entirely
  *
  * Deletion here is the same two-step as a user deleting their own account (module 03
@@ -25,6 +26,11 @@ const patchSchema = z
     isAdmin: z.boolean().optional(),
     /** null clears the override and returns the user to the deterministic default. */
     aiEngine: z.boolean().nullable().optional(),
+    displayName: z.string().trim().max(80).optional(),
+    city: z.string().trim().max(80).nullable().optional(),
+    password: z.string().min(8).max(72).optional(),
+    /** Banned accounts cannot sign in; existing sessions end when their token expires. */
+    banned: z.boolean().optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change.' });
 
@@ -34,15 +40,26 @@ export const PATCH = handle(async (request: Request, context: Context) => {
   const patch = await parseBody(request, patchSchema);
 
   // Locking yourself out is a support ticket you cannot file from inside the product.
-  if (id === admin.id && patch.isAdmin === false) {
-    throw appError('VALIDATION_FAILED', 'You cannot remove your own admin access.');
+  if (id === admin.id && (patch.isAdmin === false || patch.banned === true)) {
+    throw appError('VALIDATION_FAILED', 'You cannot lock yourself out.');
   }
 
   const client = createAdminClient();
 
+  // Auth-side changes go through the auth admin API, not the profiles table.
+  if (patch.password !== undefined || patch.banned !== undefined) {
+    const { error } = await client.auth.admin.updateUserById(id, {
+      ...(patch.password !== undefined ? { password: patch.password } : {}),
+      ...(patch.banned !== undefined ? { ban_duration: patch.banned ? '876000h' : 'none' } : {}),
+    });
+    if (error) throw appError('VALIDATION_FAILED', error.message);
+  }
+
   const row: Record<string, unknown> = {};
   if (patch.plan) row.plan = patch.plan;
   if (patch.isAdmin !== undefined) row.is_admin = patch.isAdmin;
+  if (patch.displayName !== undefined) row.display_name = patch.displayName || null;
+  if (patch.city !== undefined) row.city = patch.city || null;
 
   /**
    * Merged, not replaced: `flags` is one jsonb object, and the next flag added here must
@@ -61,12 +78,10 @@ export const PATCH = handle(async (request: Request, context: Context) => {
     row.flags = flags;
   }
 
-  const { data, error } = await client
-    .from('profiles')
-    .update(row)
-    .eq('id', id)
-    .select('id, plan, is_admin, flags')
-    .maybeSingle();
+  const columns = 'id, plan, is_admin, flags';
+  const { data, error } = Object.keys(row).length
+    ? await client.from('profiles').update(row).eq('id', id).select(columns).maybeSingle()
+    : await client.from('profiles').select(columns).eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) throw appError('NOT_FOUND');
 

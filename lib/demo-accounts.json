@@ -1,0 +1,17 @@
+[
+  { "email": "ananya.demo@example.com",  "name": "Ananya Iyer",     "city": "Bengaluru",  "g": "w", "styles": ["business", "casual"],       "size": 24 },
+  { "email": "rohan.demo@example.com",   "name": "Rohan Mehta",     "city": "Mumbai",     "g": "m", "styles": ["business", "formal"],       "size": 22 },
+  { "email": "priya.demo@example.com",   "name": "Priya Sharma",    "city": "Delhi",      "g": "w", "styles": ["formal", "date-night"],     "size": 23 },
+  { "email": "arjun.demo@example.com",   "name": "Arjun Nair",      "city": "Kochi",      "g": "m", "styles": ["casual", "lounge"],         "size": 20 },
+  { "email": "meera.demo@example.com",   "name": "Meera Kapoor",    "city": "Pune",       "g": "w", "styles": ["casual", "lounge"],         "size": 21 },
+  { "email": "kabir.demo@example.com",   "name": "Kabir Singh",     "city": "Chandigarh", "g": "m", "styles": ["workout", "casual"],        "size": 19 },
+  { "email": "isha.demo@example.com",    "name": "Isha Reddy",      "city": "Hyderabad",  "g": "w", "styles": ["party", "date-night"],      "size": 24 },
+  { "email": "vikram.demo@example.com",  "name": "Vikram Rao",      "city": "Chennai",    "g": "m", "styles": ["formal", "business"],       "size": 21 },
+  { "email": "sara.demo@example.com",    "name": "Sara D'Souza",    "city": "Panaji",     "g": "w", "styles": ["casual", "date-night"],     "size": 22 },
+  { "email": "aditya.demo@example.com",  "name": "Aditya Joshi",    "city": "Jaipur",     "g": "m", "styles": ["formal", "casual"],         "size": 20 },
+  { "email": "nisha.demo@example.com",   "name": "Nisha Verma",     "city": "Gurugram",   "g": "w", "styles": ["business", "formal"],       "size": 25 },
+  { "email": "dev.demo@example.com",     "name": "Dev Malhotra",    "city": "Delhi",      "g": "m", "styles": ["casual", "party"],          "size": 21 },
+  { "email": "tanvi.demo@example.com",   "name": "Tanvi Kulkarni",  "city": "Mumbai",     "g": "w", "styles": ["workout", "casual"],        "size": 22 },
+  { "email": "farhan.demo@example.com",  "name": "Farhan Qureshi",  "city": "Lucknow",    "g": "m", "styles": ["business", "casual"],       "size": 22 },
+  { "email": "riya.demo@example.com",    "name": "Riya Banerjee",   "city": "Kolkata",    "g": "w", "styles": ["date-night", "casual"],     "size": 23 }
+]

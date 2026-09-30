@@ -21,9 +21,15 @@ const serverSchema = z.object({
   SENTRY_DSN: z.string().url().optional(),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
-  /** `test` raises the AI caps and seeds testers premium — module 12, module 15. */
-  PHASE: z.enum(['test', 'production']).default('production'),
+  /** Shared password of the seeded demo accounts (scripts/demo/seed.mjs). Unset = no demo button. */
+  DEMO_PASSWORD: z.string().min(8).optional(),
 });
+
+/**
+ * Which deployment this is. Vercel sets VERCEL_ENV to production / preview / development;
+ * anywhere else (local `next dev`, CI) counts as development.
+ */
+export const deployPhase = (): string => process.env.VERCEL_ENV ?? 'development';
 
 /**
  * Module 13 §5 and its acceptance line: "staging uses test keys — verified by asserting
@@ -47,7 +53,7 @@ export function assertKeyMatchesPhase(keyId: string | undefined, phase: string):
   }
 }
 
-/** Whether billing is wired up at all. False through the whole test phase. */
+/** Whether billing is wired up at all. False until Razorpay keys are configured. */
 export const billingConfigured = (keyId?: string, keySecret?: string): boolean =>
   Boolean(keyId && keySecret);
 
@@ -79,10 +85,9 @@ export function serverEnv(): z.infer<typeof serverSchema> {
    * preview deployment. Refusing to boot is the correct severity — this is not a
    * warning you notice in a log, it is one you notice in someone's bank statement.
    */
-  assertKeyMatchesPhase(parsed.data.RAZORPAY_KEY_ID, parsed.data.PHASE);
+  assertKeyMatchesPhase(parsed.data.RAZORPAY_KEY_ID, deployPhase());
 
   serverCache = parsed.data;
   return serverCache;
 }
 
-export const isTestPhase = () => serverEnv().PHASE === 'test';

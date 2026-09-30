@@ -9,7 +9,6 @@
  */
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/primitives';
 import { ItemImage } from '@/components/ItemImage';
 import { UploadIcon } from '@/components/icons';
@@ -21,6 +20,7 @@ import { styleInsights } from '@/lib/insights';
 import { publicUrlsFor } from '@/lib/storage';
 import { toCategory, toProfile, type CategoryRow, type ProfileRow } from '@/lib/mappers';
 import { formatMoney } from '@/lib/cpw';
+import { greetingFor, hourIn, longDateIn } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,26 +54,33 @@ export default async function DashboardPage() {
 
   const profile = profileRow ? toProfile(profileRow as unknown as ProfileRow) : null;
   const firstName = profile?.displayName?.split(' ')[0];
+  // Their timezone, not the server's — see greetingFor in lib/format.ts.
+  const timezone = profile?.timezone ?? 'Asia/Kolkata';
 
   return (
     <>
-      <PageHeader
-        title={firstName ? `Hello, ${firstName}` : 'Your wardrobe'}
-        subtitle={
-          profile?.itemCount
-            ? `${profile.itemCount} item${profile.itemCount === 1 ? '' : 's'} in rotation`
-            : 'Nothing in it yet.'
-        }
-        action={
-          <Link
-            href="/upload"
-            className="inline-flex items-center gap-2 rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
-          >
-            <UploadIcon size={16} />
-            Add Items
-          </Link>
-        }
-      />
+      {/*
+        The date sits ABOVE the greeting and stays quiet — it is orientation, not news.
+        One serif line per screen is the rule the whole palette leans on; this is the
+        dashboard's, so nothing below it competes.
+      */}
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-meta text-text-dim">{longDateIn(timezone)}</p>
+          <h1 className="mt-1 text-[34px] font-bold leading-[1.05] tracking-tight md:text-page">
+            {greetingFor(hourIn(timezone))}
+            {firstName ? `, ${firstName}.` : '.'}
+          </h1>
+        </div>
+
+        <Link
+          href="/upload"
+          className="inline-flex items-center gap-2 rounded-[var(--radius)] bg-brand-500 px-4 py-2.5 text-meta font-medium text-on-brand transition-colors hover:bg-brand-600"
+        >
+          <UploadIcon size={16} />
+          Add Items
+        </Link>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
@@ -93,7 +100,7 @@ export default async function DashboardPage() {
                 action={
                   <Link
                     href="/upload"
-                    className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
+                    className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600"
                   >
                     Add your first items
                   </Link>

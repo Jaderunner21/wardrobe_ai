@@ -20,7 +20,7 @@ export default function NotFound() {
       <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
         <Link
           href="/wardrobe"
-          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-white hover:bg-brand-600"
+          className="rounded-[var(--radius)] bg-brand-500 px-4 py-2 text-meta font-medium text-on-brand hover:bg-brand-600"
         >
           My Wardrobe
         </Link>

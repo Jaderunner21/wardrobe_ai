@@ -138,7 +138,7 @@ export function TodaysOutfit({ style = 'casual' }: { style?: Style }) {
                 .slice(0, 2)
                 .join(' + ') || 'Today’s pick'}
             </h3>
-            <span className="rounded-full bg-brand-600 px-2 py-0.5 text-chip font-medium text-white">
+            <span className="rounded-full bg-brand-600 px-2 py-0.5 text-chip font-medium text-on-brand">
               {matchPercent(outfit.score)}% Match
             </span>
           </div>

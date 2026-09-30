@@ -385,17 +385,17 @@ export interface AiUsage {
   outTokens: number;
 }
 
-/** Per-plan daily ceilings. Enforced BEFORE the model call. See module 12. */
+/**
+ * Per-plan daily ceilings. Enforced BEFORE the model call. See module 12.
+ *
+ * Only the fallback for when `plan_features` cannot be read. No plan is sold yet, so free
+ * carries the same caps as premium, matching what `plan_features` grants both.
+ */
 export const AI_LIMITS: Record<Plan, Record<AiCallKind, number>> = {
-  free:    { tag: 40,  chat: 0,  rerank: 0  },
+  free:    { tag: 100, chat: 20, rerank: 15 },
   premium: { tag: 100, chat: 20, rerank: 15 },
 };
 
-/** Test phase only: testers are seeded premium, limits raised. See module 12. */
-export const AI_LIMITS_TEST: Record<Plan, Record<AiCallKind, number>> = {
-  free:    { tag: 100, chat: 50, rerank: 50 },
-  premium: { tag: 100, chat: 50, rerank: 50 },
-};
 
 // ─────────────────────────────────────────────────────────── errors
 
